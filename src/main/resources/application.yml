@@ -1,0 +1,38 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: adsb-simulation
+
+  # ====== 数据源配置 ======
+  # 默认使用 H2 内存数据库（无需安装 MySQL 即可开发）
+  # 需要切换 MySQL 时，激活 mysql profile: --spring.profiles.active=mysql
+  datasource:
+    url: jdbc:h2:mem:adsb_simulation;DB_CLOSE_DELAY=-1;MODE=MySQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  h2:
+    console:
+      enabled: true       # 浏览器访问 http://localhost:8080/h2-console 查看数据库
+      path: /h2-console
+
+  jpa:
+    hibernate:
+      ddl-auto: update    # 开发阶段自动建表，生产环境改为 validate
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+# ====== 日志 ======
+logging:
+  level:
+    com.adsb: debug
+
+# ====== CORS 配置（前端联调用） ======
+app:
+  cors:
+    allowed-origins: "http://localhost:5173"
