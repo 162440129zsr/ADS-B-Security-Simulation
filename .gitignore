@@ -24,3 +24,4 @@ logs/
 
 # Spring Boot
 !src/main/resources/
+src/main/resources/application-mysql.yml

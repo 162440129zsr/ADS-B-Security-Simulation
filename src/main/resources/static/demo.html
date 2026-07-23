@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ADS-B 飞行器监视仿真系统 · Demo</title>
+<!-- Vue 3 + Element Plus -->
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<script src="https://unpkg.com/element-plus/dist/index.full.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
+<!-- Leaflet -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1/dist/leaflet.js"></script>
+<!-- ECharts -->
+<script src="https://unpkg.com/echarts@5/dist/echarts.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Microsoft YaHei', sans-serif; background: #1a1a2e; color: #e0e0e0; height: 100vh; overflow: hidden; }
+
+  #app { display: flex; flex-direction: column; height: 100vh; }
+
+  /* 顶部状态栏 */
+  .top-bar {
+    background: #16213e; padding: 8px 16px;
+    display: flex; align-items: center; gap: 24px;
+    border-bottom: 1px solid #0f3460; flex-shrink: 0;
+  }
+  .logo { font-size: 16px; font-weight: bold; color: #e94560; white-space: nowrap; }
+  .stat-item { text-align: center; }
+  .stat-value { font-size: 20px; font-weight: bold; color: #0f9; }
+  .stat-label { font-size: 11px; color: #999; }
+
+  /* 主体布局 */
+  .main-area { display: flex; flex: 1; overflow: hidden; }
+
+  /* 左侧面板 */
+  .left-panel {
+    width: 340px; background: #16213e; flex-shrink: 0;
+    display: flex; flex-direction: column; border-right: 1px solid #0f3460;
+  }
+  .panel-tabs {
+    display: flex; border-bottom: 1px solid #0f3460;
+  }
+  .panel-tab {
+    flex: 1; text-align: center; padding: 10px 0; cursor: pointer;
+    font-size: 13px; color: #999; transition: all .2s;
+    border-bottom: 2px solid transparent;
+  }
+  .panel-tab:hover { color: #e0e0e0; }
+  .panel-tab.active { color: #0f9; border-bottom-color: #0f9; }
+
+  .panel-content { flex: 1; overflow-y: auto; padding: 10px; }
+  .panel-content::-webkit-scrollbar { width: 4px; }
+  .panel-content::-webkit-scrollbar-thumb { background: #0f3460; border-radius: 2px; }
+
+  /* 飞机卡片 */
+  .aircraft-card {
+    background: #1a1a2e; border: 1px solid #0f3460; border-radius: 6px;
+    padding: 10px 12px; margin-bottom: 8px; cursor: pointer;
+    transition: all .2s;
+  }
+  .aircraft-card:hover { border-color: #0f9; }
+  .aircraft-card .icao { font-size: 14px; font-weight: bold; color: #0f9; }
+  .aircraft-card .callsign { font-size: 11px; color: #999; margin-left: 8px; }
+  .aircraft-card .info-row {
+    display: flex; justify-content: space-between; margin-top: 4px;
+    font-size: 11px; color: #bbb;
+  }
+  .aircraft-card .status-badge {
+    display: inline-block; padding: 1px 6px; border-radius: 3px;
+    font-size: 10px; font-weight: bold;
+  }
+  .status-normal { background: #0f3460; color: #0f9; }
+  .status-abnormal { background: #3d0000; color: #e94560; }
+
+  /* 地图 */
+  .map-container { flex: 1; position: relative; }
+  #map { width: 100%; height: 100%; z-index: 1; }
+
+  /* 地图上的控制按钮 */
+  .map-controls {
+    position: absolute; top: 10px; right: 10px; z-index: 1000;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+
+  /* 底部日志 */
+  .bottom-bar {
+    background: #16213e; border-top: 1px solid #0f3460;
+    padding: 6px 16px; font-size: 11px; color: #999;
+    display: flex; gap: 20px; flex-shrink: 0;
+  }
+  .log-line { white-space: nowrap; }
+
+  /* 报文解析 */
+  .parse-input { width: 100%; margin-bottom: 8px; }
+  .parse-result { font-size: 11px; line-height: 1.6; }
+  .parse-result .field { color: #0f9; font-weight: bold; }
+
+  /* 告警 */
+  .alert-item {
+    background: #1a1a2e; border-left: 3px solid #e94560; border-radius: 4px;
+    padding: 8px 10px; margin-bottom: 6px; font-size: 11px;
+  }
+  .alert-item.level-yellow { border-color: #f0a500; }
+  .alert-item.level-orange { border-color: #e94560; }
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- 顶部状态栏 -->
+  <div class="top-bar">
+    <span class="logo">✈ ADS-B 飞行器监视仿真系统</span>
+    <div class="stat-item">
+      <div class="stat-value">{{ stats.totalAircraft }}</div>
+      <div class="stat-label">在线飞行器</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value">{{ stats.totalMessages }}</div>
+      <div class="stat-label">报文总数</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value" :style="{color: stats.abnormalAircraft > 0 ? '#e94560' : '#0f9'}">{{ stats.abnormalAircraft }}</div>
+      <div class="stat-label">异常飞行器</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value">{{ stats.unresolvedAlerts }}</div>
+      <div class="stat-label">未处理告警</div>
+    </div>
+    <el-button size="small" :type="simRunning ? 'danger' : 'success'" @click="toggleSim" style="margin-left:auto;">
+      {{ simRunning ? '⏹ 停止仿真' : '▶ 启动仿真' }}
+    </el-button>
+  </div>
+
+  <!-- 主体 -->
+  <div class="main-area">
+    <!-- 左侧面板 -->
+    <div class="left-panel">
+      <div class="panel-tabs">
+        <div class="panel-tab" :class="{active: tab==='list'}" @click="tab='list'">📋 飞行器</div>
+        <div class="panel-tab" :class="{active: tab==='parse'}" @click="tab='parse'">🔍 报文解析</div>
+        <div class="panel-tab" :class="{active: tab==='alerts'}" @click="tab='alerts'">⚠ 告警</div>
+      </div>
+      <div class="panel-content">
+
+        <!-- 飞行器列表 -->
+        <div v-if="tab==='list'">
+          <el-input v-model="searchIcao" placeholder="搜索 ICAO..." size="small" clearable style="margin-bottom:8px;"/>
+          <div v-for="ac in filteredAircraft" :key="ac.icao" class="aircraft-card" @click="focusAircraft(ac)">
+            <span class="icao">{{ ac.icao }}</span>
+            <span class="callsign">{{ ac.callsign || '—' }}</span>
+            <span class="status-badge" :class="ac.status==='正常'?'status-normal':'status-abnormal'">{{ ac.status }}</span>
+            <div class="info-row">
+              <span>📍 {{ ac.latitude?.toFixed(2) }}, {{ ac.longitude?.toFixed(2) }}</span>
+              <span>🔼 {{ ac.altitude?.toFixed(0) }} ft</span>
+            </div>
+            <div class="info-row">
+              <span>💨 {{ ac.speed?.toFixed(0) }} kt</span>
+              <span>🧭 {{ ac.heading?.toFixed(0) }}°</span>
+            </div>
+          </div>
+          <div v-if="filteredAircraft.length===0" style="text-align:center;color:#666;padding:20px;">
+            暂无数据，请启动仿真
+          </div>
+        </div>
+
+        <!-- 报文解析 -->
+        <div v-if="tab==='parse'">
+          <el-input v-model="hexMsg" placeholder="输入 28 位十六进制报文..." maxlength="28" class="parse-input" size="small">
+            <template #append>
+              <el-button @click="parseMessage" size="small">解析</el-button>
+            </template>
+          </el-input>
+          <el-button size="small" @click="hexMsg='8D4840D6202CC371C32CE0576098'" style="margin-bottom:6px;">填充示例报文</el-button>
+          <div v-if="parseResult" class="parse-result">
+            <div v-for="(val, key) in parseResult" :key="key" style="margin-bottom:2px;">
+              <span class="field">{{ key }}：</span>{{ val }}
+            </div>
+          </div>
+        </div>
+
+        <!-- 告警 -->
+        <div v-if="tab==='alerts'">
+          <div v-if="alerts.length===0" style="text-align:center;color:#666;padding:20px;">✅ 暂无告警</div>
+          <div v-for="a in alerts" :key="a.id" class="alert-item" :class="'level-'+ (a.alertLevel||'yellow')">
+            <div><strong>{{ a.alertType }}</strong> <span style="color:#999;">{{ a.icao }}</span></div>
+            <div style="margin-top:2px;">{{ a.description }}</div>
+            <div style="color:#666;font-size:10px;margin-top:2px;">{{ a.createdAt }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 地图 -->
+    <div class="map-container">
+      <div id="map"></div>
+      <div class="map-controls">
+        <el-button size="small" @click="refreshData" :loading="loading">🔄 刷新</el-button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 底部日志 -->
+  <div class="bottom-bar">
+    <span class="log-line">🟢 仿真状态：{{ simRunning ? '运行中 · ' + stats.totalAircraft + ' 架 · 1s 刷新' : '已停止' }}</span>
+    <span class="log-line" v-if="lastMsg">📨 最新报文：{{ lastMsg }}</span>
+    <span class="log-line">⚡ API：{{ apiBase }}</span>
+  </div>
+</div>
+
+<script>
+const { createApp, ref, computed, onMounted, onUnmounted, watch, nextTick } = Vue;
+
+const app = createApp({
+  setup() {
+    const apiBase = 'http://localhost:8080/api';
+    const tab = ref('list');
+    const searchIcao = ref('');
+    const hexMsg = ref('');
+    const parseResult = ref(null);
+    const alerts = ref([]);
+    const stats = ref({ totalAircraft: 0, totalMessages: 0, abnormalAircraft: 0, unresolvedAlerts: 0 });
+    const simRunning = ref(false);
+    const loading = ref(false);
+    const lastMsg = ref('');
+    const aircraftList = ref([]);
+
+    let map = null;
+    let markers = {};
+    let updateTimer = null;
+
+    const filteredAircraft = computed(() => {
+      if (!searchIcao.value) return aircraftList.value;
+      const q = searchIcao.value.toUpperCase();
+      return aircraftList.value.filter(a => a.icao.includes(q) || (a.callsign||'').includes(q));
+    });
+
+    // 初始化地图
+    function initMap() {
+      map = L.map('map', { center: [34, 108], zoom: 5 });
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap',
+        maxZoom: 18
+      }).addTo(map);
+    }
+
+    // 飞机图标
+    function planeIcon(heading, status) {
+      const color = status === '异常' ? '#e94560' : '#0f9';
+      return L.divIcon({
+        html: `<div style="transform:rotate(${heading||0}deg);font-size:20px;color:${color};">✈</div>`,
+        className: 'plane-icon',
+        iconSize: [28, 28],
+        iconAnchor: [14, 14]
+      });
+    }
+
+    // 刷新所有数据
+    async function refreshData() {
+      loading.value = true;
+      try {
+        const [posRes, statsRes, alertsRes, statusRes] = await Promise.all([
+          fetch(apiBase + '/aircraft/positions'),
+          fetch(apiBase + '/stats'),
+          fetch(apiBase + '/alerts'),
+          fetch(apiBase + '/simulation/status')
+        ]);
+        const positions = await posRes.json();
+        aircraftList.value = positions;
+        stats.value = await statsRes.json();
+        alerts.value = await alertsRes.json();
+        const st = await statusRes.json();
+        simRunning.value = st.running;
+
+        // 更新地图标记
+        const seen = new Set();
+        for (const ac of positions) {
+          if (!ac.latitude || !ac.longitude) continue;
+          seen.add(ac.icao);
+          const latlng = [ac.latitude, ac.longitude];
+          if (markers[ac.icao]) {
+            markers[ac.icao].setLatLng(latlng);
+            markers[ac.icao].setIcon(planeIcon(ac.heading, ac.status));
+          } else {
+            const m = L.marker(latlng, { icon: planeIcon(ac.heading, ac.status) })
+              .addTo(map)
+              .bindPopup(`<b>${ac.icao}</b><br>${ac.callsign||''}<br>${ac.altitude?.toFixed(0)}ft · ${ac.speed?.toFixed(0)}kt`);
+            m.on('click', () => m.openPopup());
+            markers[ac.icao] = m;
+          }
+        }
+        // 移除已消失的标记
+        for (const icao of Object.keys(markers)) {
+          if (!seen.has(icao)) { map.removeLayer(markers[icao]); delete markers[icao]; }
+        }
+
+        lastMsg.value = positions.length > 0
+          ? `${positions[0].icao} @ ${positions[0].altitude?.toFixed(0)}ft`
+          : '';
+      } catch(e) {
+        console.error('数据刷新失败:', e);
+      }
+      loading.value = false;
+    }
+
+    // 聚焦飞机
+    function focusAircraft(ac) {
+      if (!ac.latitude || !ac.longitude) return;
+      map.setView([ac.latitude, ac.longitude], 10);
+      if (markers[ac.icao]) markers[ac.icao].openPopup();
+    }
+
+    // 解析报文
+    async function parseMessage() {
+      if (!hexMsg.value || hexMsg.value.length !== 28) return;
+      try {
+        const res = await fetch(apiBase + '/adsb/parse', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ hexMsg: hexMsg.value })
+        });
+        parseResult.value = await res.json();
+      } catch(e) {
+        parseResult.value = { '错误': e.message };
+      }
+    }
+
+    // 启停仿真
+    async function toggleSim() {
+      const url = simRunning.value ? apiBase + '/simulation/stop' : apiBase + '/simulation/start';
+      const opts = simRunning.value ? { method: 'POST' } : {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ aircraftCount: 15, intervalMs: 1000 })
+      };
+      await fetch(url, opts);
+      await refreshData();
+    }
+
+    onMounted(() => {
+      initMap();
+      refreshData();
+      updateTimer = setInterval(refreshData, 2000);
+    });
+
+    onUnmounted(() => {
+      if (updateTimer) clearInterval(updateTimer);
+      if (map) map.remove();
+    });
+
+    return { tab, searchIcao, hexMsg, parseResult, alerts, stats, simRunning,
+             loading, lastMsg, apiBase, aircraftList, filteredAircraft,
+             refreshData, focusAircraft, parseMessage, toggleSim };
+  }
+});
+
+app.use(ElementPlus);
+app.mount('#app');
+</script>
+</body>
+</html>
