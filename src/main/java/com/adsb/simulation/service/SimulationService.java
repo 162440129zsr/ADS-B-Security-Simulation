@@ -112,9 +112,10 @@ public class SimulationService {
         List<Aircraft> aircraftList = aircraftRepo.findAll();
         for (Aircraft ac : aircraftList) {
             // Haversine 位移（模拟飞行 1 秒）
+            // 每 tick 模拟 30 秒飞行，使飞机在地图上有肉眼可见的位移
             double[] newPos = updatePosition(
                     ac.getLatitude(), ac.getLongitude(),
-                    ac.getSpeed(), ac.getHeading(), 1.0
+                    ac.getSpeed(), ac.getHeading(), 30.0
             );
             ac.setLatitude(newPos[0]);
             ac.setLongitude(newPos[1]);
