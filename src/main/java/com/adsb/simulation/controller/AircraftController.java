@@ -84,6 +84,16 @@ public class AircraftController {
                 "messageCount", messageRepo.count());
     }
 
+    /** 运行时调整飞机数量 */
+    @PostMapping("/simulation/config")
+    public Map<String, Object> updateConfig(@RequestBody Map<String, Object> body) {
+        if (body.containsKey("aircraftCount")) {
+            int count = ((Number) body.get("aircraftCount")).intValue();
+            simulationService.setAircraftCount(count);
+        }
+        return Map.of("success", true, "aircraftCount", aircraftRepo.count());
+    }
+
     // ====== 告警 ======
 
     @GetMapping("/alerts")

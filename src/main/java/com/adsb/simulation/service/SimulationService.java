@@ -101,6 +101,43 @@ public class SimulationService {
         log.info("仿真已停止");
     }
 
+    /** 运行时调整飞机数量 */
+    public void setAircraftCount(int count) {
+        int current = (int) aircraftRepo.count();
+        if (count > current) {
+            // 增加飞机：补充随机新飞机
+            int add = count - current;
+            for (int i = 0; i < add; i++) {
+                Aircraft ac = Aircraft.builder()
+                        .icao(randomIcao()).callsign(randomCallsign())
+                        .category(randomCategory())
+                        .latitude(LAT_MIN + RNG.nextDouble() * (LAT_MAX - LAT_MIN))
+                        .longitude(LON_MIN + RNG.nextDouble() * (LON_MAX - LON_MIN))
+                        .altitude(ALT_MIN + RNG.nextDouble() * (ALT_MAX - ALT_MIN))
+                        .speed(SPEED_MIN + RNG.nextDouble() * (SPEED_MAX - SPEED_MIN))
+                        .heading(RNG.nextDouble() * 360).status("正常")
+                        .build();
+                aircraftRepo.save(ac);
+            }
+        } else if (count < current) {
+            // 减少飞机：删除多余的
+            List<Aircraft> all = aircraftRepo.findAll();
+            for (int i = current - 1; i >= count; i--) {
+                aircraftRepo.delete(all.get(i));
+            }
+        }
+        log.info("飞机数量调整：{} → {}", current, count);
+    }
+
+    /** 获取当前配置 */
+    public SimulationConfig getConfig() {
+        List<SimulationConfig> configs = configRepo.findAll();
+        return configs.isEmpty() ? SimulationConfig.builder()
+                .aircraftCount((int) aircraftRepo.count())
+                .messageIntervalMs(1000).isRunning(running).build()
+                : configs.get(0);
+    }
+
     /**
      * 核心定时任务：每秒更新所有飞机位置并生成报文
      */
@@ -130,7 +167,7 @@ public class SimulationService {
             // 生成一条 ADS-B 报文记录
             AdsbMessage msg = AdsbMessage.builder()
                     .icao(ac.getIcao())
-                    .rawHex(generateRawHex(ac))
+                    .rawHex(generatePositionHex(ac))
                     .df(17)
                     .tc(11) // 空中位置(气压高度)
                     .messageType("空中位置(气压高度)")
@@ -168,15 +205,51 @@ public class SimulationService {
         return new double[]{newLat, newLon};
     }
 
-    private String generateRawHex(Aircraft ac) {
-        // 生成看起来合法的 28 位 hex（简化版）
-        StringBuilder sb = new StringBuilder("8D");
-        // ICAO (6 hex chars)
-        sb.append(ac.getIcao());
-        // 填充剩余 20 位随机 hex
-        for (int i = 0; i < 20; i++) {
-            sb.append(String.format("%X", RNG.nextInt(16)));
-        }
+    /**
+     * 按 ADS-B 格式生成位置报文 hex（28 位）
+     * 格式: DF(1) + CA(1) + ICAO(6) + DATA(14) + PI(6)
+     * DF=17 (10001), CA=0 (000), 组成首字节 0x8D
+     */
+    private String generatePositionHex(Aircraft ac) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("8D");                    // DF=17, CA=0
+        sb.append(ac.getIcao());           // 6 hex, ICAO 地址
+
+        // TC=11 (空中位置, 气压高度) — 5 bits: 01011
+        // 后接 SS=0 (监视状态), etc.
+        // 简化：生成语义合理的 TC 11 报文框架
+        // Data 域: TC(5) + SS(2) + SAF(1) + ALT(12) + T(1) + F(1) + CPR-LAT(17) + CPR-LON(17)
+        // 共 56 bits = 14 hex chars
+
+        int tc = 11;                        // Type Code
+        int ss = 0;                         // Surveillance Status
+        int saf = 0;                        // Single Antenna Flag
+        // ALT: 气压高度编码 (Q=1, 25ft 增量)
+        int altRaw = (int) ((ac.getAltitude() + 1000) / 25);
+        altRaw = Math.max(0, Math.min(0xFFF, altRaw));
+        int t = 1;                          // Time flag
+        int f = RNG.nextInt(2);            // CPR odd/even
+
+        // CPR 编码（简化）
+        int cprLat = (int) ((ac.getLatitude() - Math.floor(ac.getLatitude())) * 131072);
+        int cprLon = (int) ((ac.getLongitude() - Math.floor(ac.getLongitude())) * 131072);
+
+        // 组装 56 bits ME 字段
+        long me = 0;
+        me = (me << 5)  | (tc & 0x1F);
+        me = (me << 2)  | (ss & 0x03);
+        me = (me << 1)  | (saf & 0x01);
+        me = (me << 12) | (altRaw & 0xFFF);
+        me = (me << 1)  | (t & 0x01);
+        me = (me << 1)  | (f & 0x01);
+        me = (me << 17) | (cprLat & 0x1FFFF);
+        me = (me << 17) | (cprLon & 0x1FFFF);
+
+        sb.append(String.format("%014X", me)); // 14 hex chars
+
+        // PI 字段（简化 CRC）
+        sb.append("000000");
+
         return sb.toString().toUpperCase();
     }
 
