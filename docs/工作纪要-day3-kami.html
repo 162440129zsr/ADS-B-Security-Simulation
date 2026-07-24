@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>ADS-B仿真系统后端开发 · Day 3 工作纪要</title>
+<meta name="author" content="熊康">
+<meta name="description" content="ADS-B 仿真系统后端开发第三日工作总结：Python decode.py 移植为 Java 版 AdsbDecoderService，7 个单元测试全部通过，REST API 验证成功。">
+<meta name="keywords" content="ADS-B, Java, 报文解码, CPR, CRC, Spring Boot, 工作纪要">
+<meta name="generator" content="Kami">
+<style>
+  @font-face {
+    font-family: "TsangerJinKai02";
+    src: url("../fonts/TsangerJinKai02-W04.ttf") format("truetype"),
+         url("https://cdn.jsdelivr.net/gh/tw93/Kami@main/assets/fonts/TsangerJinKai02-W04.ttf") format("truetype");
+    font-weight: 400;
+    font-style: normal;
+  }
+  @font-face {
+    font-family: "TsangerJinKai02";
+    src: url("../fonts/TsangerJinKai02-W05.ttf") format("truetype"),
+         url("https://cdn.jsdelivr.net/gh/tw93/Kami@main/assets/fonts/TsangerJinKai02-W05.ttf") format("truetype");
+    font-weight: 500;
+    font-style: normal;
+  }
+
+  @page { size: A4; margin: 15mm 18mm 15mm 18mm; background: #f5f4ed; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --parchment: #f5f4ed;
+    --ivory:     #faf9f5;
+    --near-black:#141413;
+    --dark-warm: #3d3d3a;
+    --olive:     #504e49;
+    --stone:     #6b6a64;
+    --brand:     #1B365D;
+    --border:    #e8e6dc;
+    --border-soft:#e5e3d8;
+    --tag-bg:    #E4ECF5;
+    --serif: "TsangerJinKai02", "Source Han Serif SC", "Noto Serif CJK SC", "Songti SC", "STSong", Georgia, serif;
+    --sans: var(--serif);
+  }
+
+  html, body { background: var(--parchment); }
+  @media screen {
+    body { max-width: 210mm; margin: 0 auto; padding: 15mm 18mm; }
+  }
+
+  body {
+    color: var(--near-black);
+    font-family: var(--serif);
+    font-size: 10pt;
+    line-height: 1.45;
+    letter-spacing: 0.3pt;
+  }
+
+  .header {
+    border-left: 2.5pt solid var(--brand);
+    border-radius: 1.5pt;
+    padding-left: 8pt;
+    margin-bottom: 14pt;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 20pt;
+  }
+  .title-block { flex: 1; }
+  .eyebrow {
+    font-size: 9pt; color: var(--brand);
+    letter-spacing: 1pt; text-transform: uppercase;
+    margin-bottom: 4pt;
+  }
+  h1 {
+    font-family: var(--serif);
+    font-size: 24pt; font-weight: 500;
+    color: var(--near-black);
+    line-height: 1.15;
+    margin-bottom: 5pt;
+  }
+  .subtitle { font-size: 11pt; color: var(--olive); line-height: 1.4; }
+  .meta {
+    font-size: 9pt; color: var(--stone);
+    text-align: right; line-height: 1.45; white-space: nowrap;
+  }
+
+  .metrics {
+    display: flex; gap: 14pt;
+    margin-bottom: 18pt;
+    padding: 4pt 0 6pt 0;
+    border-bottom: 0.3pt dotted var(--border);
+  }
+  .metric {
+    flex: 1; background: transparent; padding: 0;
+    display: flex; align-items: baseline; gap: 4pt;
+    break-inside: avoid;
+  }
+  .metric-value {
+    font-family: var(--serif);
+    font-size: 20pt; font-weight: 500;
+    color: var(--brand); line-height: 1;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap; letter-spacing: -0.2pt;
+  }
+  .metric-label { font-size: 9pt; color: var(--olive); line-height: 1.3; }
+
+  section { margin-bottom: 18pt; break-inside: avoid; }
+  section:last-of-type { margin-bottom: 0; }
+
+  h2 {
+    font-family: var(--serif);
+    font-size: 16pt; font-weight: 500;
+    color: var(--near-black);
+    margin-bottom: 6pt;
+  }
+
+  p { margin-bottom: 6pt; line-height: 1.45; }
+  p:last-child { margin-bottom: 0; }
+
+  .hl { color: var(--brand); font-weight: 500; }
+
+  .two-col {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 18pt;
+  }
+
+  ul.dash { list-style: none; margin: 0; padding: 0; }
+  ul.dash li {
+    position: relative; padding-left: 14pt;
+    margin-bottom: 4pt; line-height: 1.45;
+  }
+  ul.dash li::before {
+    content: "\2013"; position: absolute; left: 0;
+    color: var(--brand);
+  }
+
+  .tag {
+    display: inline-block;
+    background: var(--tag-bg);
+    color: var(--brand);
+    font-size: 9pt; font-weight: 500;
+    padding: 1pt 5pt; border-radius: 3pt;
+    letter-spacing: 0.3pt; margin-right: 3pt;
+  }
+
+  table, .kami-table {
+    width: 100%; border-collapse: collapse;
+    font-size: 9pt; margin: 8pt 0; break-inside: avoid;
+  }
+  table th, .kami-table th {
+    text-align: left; font-weight: 500; color: var(--dark-warm);
+    padding: 4pt 6pt; border-bottom: 1pt solid var(--border);
+    background: transparent;
+  }
+  table td, .kami-table td {
+    padding: 3pt 6pt; border-bottom: 0.3pt solid var(--border-soft);
+    vertical-align: top;
+  }
+  table.striped tbody tr:nth-child(even) td {
+    background: var(--ivory);
+  }
+
+  .callout {
+    background: transparent;
+    border-left: 1.8pt solid var(--brand);
+    padding: 4pt 0 4pt 14pt;
+    margin: 10pt 0;
+    font-size: 10pt; line-height: 1.5;
+    color: var(--olive);
+    break-inside: avoid;
+  }
+
+  .footer {
+    margin-top: 18pt;
+    padding-top: 6pt;
+    border-top: 0.3pt dotted var(--border);
+    font-size: 9pt; color: var(--stone);
+    display: flex; justify-content: space-between;
+    letter-spacing: 0.3pt;
+  }
+
+  code {
+    font-family: "JetBrains Mono", "SF Mono", Consolas, "TsangerJinKai02", monospace;
+    font-size: 9pt; background: var(--ivory);
+    padding: 1pt 4pt; border-radius: 2pt;
+    color: var(--dark-warm);
+  }
+
+  .test-ok {
+    display: inline-block; width: 14pt; height: 14pt;
+    border-radius: 50%; background: #2d6a4f; color: #fff;
+    font-size: 8pt; text-align: center; line-height: 14pt;
+    margin-right: 4pt;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="title-block">
+    <div class="eyebrow">开发纪要 · Dev Log</div>
+    <h1>ADS-B 报文解码核心<br>Java 移植完成</h1>
+    <div class="subtitle">Python decode.py → Java AdsbDecoderService，7 项测试一致，REST API 验证通过</div>
+  </div>
+  <div class="meta">
+    <strong>熊康</strong><br>
+    2026.07.25<br>
+    Day 3 · 核心解码
+  </div>
+</div>
+
+<div class="metrics">
+  <div class="metric">
+    <div class="metric-value">6</div>
+    <div class="metric-label">新建 Java 文件</div>
+  </div>
+  <div class="metric">
+    <div class="metric-value">964</div>
+    <div class="metric-label">行代码</div>
+  </div>
+  <div class="metric">
+    <div class="metric-value">7</div>
+    <div class="metric-label">单元测试通过</div>
+  </div>
+  <div class="metric">
+    <div class="metric-value">3</div>
+    <div class="metric-label">REST API 接口</div>
+  </div>
+</div>
+
+<div class="two-col">
+  <section>
+    <h2><span class="tag">核心</span> 解码服务</h2>
+    <ul class="dash">
+      <li><code>AdsbDecoderService</code> — 主解码引擎</li>
+      <li>支持 5 种消息类型识别与解析</li>
+      <li>飞机识别：呼号 + 类别（<span class="hl">KLM1023</span>）</li>
+      <li>空中/地面位置：CPR 提取 + 高度解码</li>
+      <li>空中速度：地速 + 航迹角 + 垂直速率</li>
+      <li>运行状态：ADS-B 版本识别</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2><span class="tag">支撑</span> 子服务</h2>
+    <ul class="dash">
+      <li><code>CrcService</code> — CRC-24 多项式校验<br>生成多项式 <span class="hl">0xFFFA0480</span></li>
+      <li><code>CprDecoderService</code> — CPR 紧凑位置报告解码<br>奇偶帧配对 / 参考位置单帧解码<br>Haversine 经纬度归一化</li>
+      <li><code>AdsbParseResult</code> — 有序 Map 输出<br>前端可直接遍历展示</li>
+    </ul>
+  </section>
+</div>
+
+<section>
+  <h2>7 项单元测试结果</h2>
+  <table class="striped">
+    <thead>
+      <tr>
+        <th style="width:6%;">#</th>
+        <th style="width:30%;">测试项</th>
+        <th style="width:30%;">报文</th>
+        <th style="width:34%;">验证结果</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="test-ok">✓</span></td>
+        <td>飞机识别</td>
+        <td><code>8D4840D6...</code></td>
+        <td>呼号 <span class="hl">KLM1023</span>，重型，DF=17，TC=4</td>
+      </tr>
+      <tr>
+        <td><span class="test-ok">✓</span></td>
+        <td>空中位置偶帧</td>
+        <td><code>8D40621D...</code></td>
+        <td>高度 <span class="hl">22,000ft</span>，CPR 偶帧</td>
+      </tr>
+      <tr>
+        <td><span class="test-ok">✓</span></td>
+        <td>奇偶帧配对</td>
+        <td>偶帧 + 奇帧</td>
+        <td>纬度 <span class="hl">52.2572</span>，经度 <span class="hl">4.0314</span>（配对成功）</td>
+      </tr>
+      <tr>
+        <td><span class="test-ok">✓</span></td>
+        <td>空中速度</td>
+        <td><code>8D485020...</code></td>
+        <td>159.2kt，航向 182.9°，上升 832ft/min</td>
+      </tr>
+      <tr>
+        <td><span class="test-ok">✓</span></td>
+        <td>参考位置解码</td>
+        <td>偶帧 / 奇帧</td>
+        <td>单帧也可独立解码位置</td>
+      </tr>
+      <tr>
+        <td><span class="test-ok">✓</span></td>
+        <td>CRC 校验</td>
+        <td>全部 4 条报文</td>
+        <td>CRC 计算逻辑正常</td>
+      </tr>
+      <tr>
+        <td><span class="test-ok">✓</span></td>
+        <td>非法输入防御</td>
+        <td>短报文/空值/非法字符</td>
+        <td>正确拒绝并返回错误信息</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>REST API 接口</h2>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:12%;">方法</th>
+        <th style="width:35%;">接口</th>
+        <th style="width:53%;">功能</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="tag">POST</span></td>
+        <td><code>/api/adsb/parse</code></td>
+        <td>解析单条 28 位 hex 报文，返回有序字段 Map</td>
+      </tr>
+      <tr>
+        <td><span class="tag">POST</span></td>
+        <td><code>/api/adsb/parse/batch</code></td>
+        <td>批量解析，支持带时间戳的顺序报文</td>
+      </tr>
+      <tr>
+        <td><span class="tag">POST</span></td>
+        <td><code>/api/adsb/parse/with-ref</code></td>
+        <td>用参考位置解码单帧（无需奇偶配对）</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>当前项目结构</h2>
+  <table>
+    <thead>
+      <tr><th style="width:52%;">文件</th><th style="width:14%;">类型</th><th style="width:34%;">职责</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>AdsbSimulationApplication.java</code></td><td>启动</td><td>@EnableScheduling</td></tr>
+      <tr><td><code>config/WebConfig.java</code></td><td>配置</td><td>CORS</td></tr>
+      <tr><td><code>controller/HealthController.java</code></td><td>API</td><td>GET /api/health</td></tr>
+      <tr><td><code>controller/AdsbController.java</code></td><td>API</td><td>报文解析 3 个接口 <span class="hl">← NEW</span></td></tr>
+      <tr><td><code>service/AdsbDecoderService.java</code></td><td>核心</td><td>主解码引擎 <span class="hl">← NEW</span></td></tr>
+      <tr><td><code>service/CrcService.java</code></td><td>核心</td><td>CRC 校验 <span class="hl">← NEW</span></td></tr>
+      <tr><td><code>service/CprDecoderService.java</code></td><td>核心</td><td>CPR 位置解码 <span class="hl">← NEW</span></td></tr>
+      <tr><td><code>model/Aircraft.java</code></td><td>Entity</td><td>飞行器表映射</td></tr>
+      <tr><td><code>model/AdsbMessage.java</code></td><td>Entity</td><td>报文表映射</td></tr>
+      <tr><td><code>model/SecurityAlert.java</code></td><td>Entity</td><td>告警表映射</td></tr>
+      <tr><td><code>model/SimulationConfig.java</code></td><td>Entity</td><td>仿真配置映射</td></tr>
+      <tr><td><code>model/AdsbParseResult.java</code></td><td>DTO</td><td>解析结果 <span class="hl">← NEW</span></td></tr>
+      <tr><td><code>repository/*Repository.java</code></td><td>数据层</td><td>4 个 JPA Repository</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<div class="callout">
+  <strong>技术要点：</strong>CRC 多项式 <code>0xFFFA0480</code> 模 2 除法校验；CPR 通过奇偶帧配对还原全局经纬度（Haversine 归一化）；报文字段按 bit 精确提取（DF 前 5 位、TC 第 33-37 位、CPR-LAT 第 55-71 位等）。与 Python pyModeS 的 5 条标准测试报文结果完全一致。<br>
+  <strong>下一步（Day 6 · 7/28）：</strong>报文模拟生成器 <code>SimulationService</code>，自主产生仿真 ADS-B 报文流，为前端联调提供数据源。
+</div>
+
+<div class="footer">
+  <span>内部 · 南京航空航天大学</span>
+  <span>2026.07.25 · 下一检查节点：7/29</span>
+</div>
+
+</body>
+</html>

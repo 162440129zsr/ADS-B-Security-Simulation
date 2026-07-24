@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>ADS-B仿真系统 · 阶段性成果报告</title>
+<meta name="author" content="熊康">
+<meta name="description" content="ADS-B 仿真系统开发阶段性成果：后端 Spring Boot 服务（报文解码/飞机模拟/数据API）、前端 Vue3 项目（6模块/地图可视化）、Demo 可运行演示。">
+<meta name="keywords" content="ADS-B, Spring Boot, Vue3, 成果报告, 仿真系统, 阶段性总结">
+<meta name="generator" content="Kami">
+<style>
+  @font-face {
+    font-family: "TsangerJinKai02";
+    src: url("../fonts/TsangerJinKai02-W04.ttf") format("truetype"),
+         url("https://cdn.jsdelivr.net/gh/tw93/Kami@main/assets/fonts/TsangerJinKai02-W04.ttf") format("truetype");
+    font-weight: 400; font-style: normal;
+  }
+  @font-face {
+    font-family: "TsangerJinKai02";
+    src: url("../fonts/TsangerJinKai02-W05.ttf") format("truetype"),
+         url("https://cdn.jsdelivr.net/gh/tw93/Kami@main/assets/fonts/TsangerJinKai02-W05.ttf") format("truetype");
+    font-weight: 500; font-style: normal;
+  }
+
+  @page { size: A4; margin: 15mm 18mm 15mm 18mm; background: #f5f4ed; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --parchment: #f5f4ed;
+    --ivory:     #faf9f5;
+    --near-black:#141413;
+    --dark-warm: #3d3d3a;
+    --olive:     #504e49;
+    --stone:     #6b6a64;
+    --brand:     #1B365D;
+    --border:    #e8e6dc;
+    --border-soft:#e5e3d8;
+    --tag-bg:    #E4ECF5;
+    --serif: "TsangerJinKai02", "Source Han Serif SC", "Noto Serif CJK SC", "Songti SC", "STSong", Georgia, serif;
+    --sans: var(--serif);
+  }
+
+  html, body { background: var(--parchment); }
+  @media screen {
+    body { max-width: 210mm; margin: 0 auto; padding: 15mm 18mm; }
+  }
+
+  body {
+    color: var(--near-black);
+    font-family: var(--serif);
+    font-size: 10pt;
+    line-height: 1.45;
+    letter-spacing: 0.3pt;
+  }
+
+  .header {
+    border-left: 2.5pt solid var(--brand);
+    border-radius: 1.5pt;
+    padding-left: 8pt;
+    margin-bottom: 14pt;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 20pt;
+  }
+  .title-block { flex: 1; }
+  .eyebrow {
+    font-size: 9pt; color: var(--brand);
+    letter-spacing: 1pt; text-transform: uppercase;
+    margin-bottom: 4pt;
+  }
+  h1 {
+    font-family: var(--serif);
+    font-size: 22pt; font-weight: 500;
+    color: var(--near-black);
+    line-height: 1.15;
+    margin-bottom: 5pt;
+  }
+  .subtitle { font-size: 11pt; color: var(--olive); line-height: 1.4; }
+  .meta {
+    font-size: 9pt; color: var(--stone);
+    text-align: right; line-height: 1.45; white-space: nowrap;
+  }
+
+  .metrics {
+    display: flex; gap: 14pt;
+    margin-bottom: 14pt;
+    padding: 4pt 0 6pt 0;
+    border-bottom: 0.3pt dotted var(--border);
+  }
+  .metric {
+    flex: 1; background: transparent; padding: 0;
+    display: flex; align-items: baseline; gap: 4pt;
+    break-inside: avoid;
+  }
+  .metric-value {
+    font-family: var(--serif);
+    font-size: 20pt; font-weight: 500;
+    color: var(--brand); line-height: 1;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap; letter-spacing: -0.2pt;
+  }
+  .metric-label { font-size: 9pt; color: var(--olive); line-height: 1.3; }
+
+  section { margin-bottom: 14pt; break-inside: avoid; }
+  section:last-of-type { margin-bottom: 0; }
+
+  h2 {
+    font-family: var(--serif);
+    font-size: 14pt; font-weight: 500;
+    color: var(--near-black);
+    margin-bottom: 6pt;
+    border-left: 2pt solid var(--brand);
+    border-radius: 1.5pt;
+    padding-left: 6pt;
+  }
+
+  p { margin-bottom: 6pt; line-height: 1.45; }
+  p:last-child { margin-bottom: 0; }
+
+  .hl { color: var(--brand); font-weight: 500; }
+
+  .two-col {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 14pt;
+  }
+
+  ul.dash { list-style: none; margin: 0; padding: 0; }
+  ul.dash li {
+    position: relative; padding-left: 14pt;
+    margin-bottom: 4pt; line-height: 1.45;
+  }
+  ul.dash li::before {
+    content: "\2013"; position: absolute; left: 0;
+    color: var(--brand);
+  }
+
+  .tag {
+    display: inline-block;
+    background: var(--tag-bg);
+    color: var(--brand);
+    font-size: 9pt; font-weight: 500;
+    padding: 1pt 5pt; border-radius: 3pt;
+    letter-spacing: 0.3pt; margin-right: 3pt;
+  }
+
+  table, .kami-table {
+    width: 100%; border-collapse: collapse;
+    font-size: 9pt; margin: 6pt 0; break-inside: avoid;
+  }
+  table th, .kami-table th {
+    text-align: left; font-weight: 500; color: var(--dark-warm);
+    padding: 4pt 6pt; border-bottom: 1pt solid var(--border);
+    background: transparent;
+  }
+  table td, .kami-table td {
+    padding: 3pt 6pt; border-bottom: 0.3pt solid var(--border-soft);
+    vertical-align: top; line-height: 1.4;
+  }
+  table.striped tbody tr:nth-child(even) td { background: var(--ivory); }
+
+  .callout {
+    background: transparent;
+    border-left: 1.8pt solid var(--brand);
+    padding: 4pt 0 4pt 14pt;
+    margin: 8pt 0;
+    font-size: 10pt; line-height: 1.5;
+    color: var(--olive);
+    break-inside: avoid;
+  }
+
+  .footer {
+    margin-top: 14pt;
+    padding-top: 5pt;
+    border-top: 0.3pt dotted var(--border);
+    font-size: 9pt; color: var(--stone);
+    display: flex; justify-content: space-between;
+    letter-spacing: 0.3pt;
+  }
+
+  code {
+    font-family: "JetBrains Mono", "SF Mono", Consolas, "TsangerJinKai02", monospace;
+    font-size: 9pt; background: var(--ivory);
+    padding: 1pt 4pt; border-radius: 2pt;
+    color: var(--dark-warm);
+  }
+
+  .check { color: #2d6a4f; font-weight: 500; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="title-block">
+    <div class="eyebrow">阶段性成果报告 · Progress Report</div>
+    <h1>ADS-B 仿真系统<br>后端 + 前端开发完成</h1>
+    <div class="subtitle">涵盖项目初始化、数据库设计、ADS-B 解码引擎、飞机模拟器、Vue3 全栈前端，前后端全链路打通</div>
+  </div>
+  <div class="meta">
+    <strong>熊康（后端）· 赵士睿（前端）</strong><br>
+    指导教师：朱友文 教授<br>
+    2026.07.23 — 07.29<br>
+    南京航空航天大学
+  </div>
+</div>
+
+<div class="metrics">
+  <div class="metric">
+    <div class="metric-value">16</div>
+    <div class="metric-label">Java 源文件</div>
+  </div>
+  <div class="metric">
+    <div class="metric-value">6</div>
+    <div class="metric-label">Vue 页面组件</div>
+  </div>
+  <div class="metric">
+    <div class="metric-value">10</div>
+    <div class="metric-label">REST API 接口</div>
+  </div>
+  <div class="metric">
+    <div class="metric-value">7</div>
+    <div class="metric-label">次 Git 提交</div>
+  </div>
+</div>
+
+<!-- ═══════════ 后端成果 ═══════════ -->
+<section>
+  <h2>后端 · Spring Boot 3.3.0 + Java 17</h2>
+
+  <div class="two-col" style="margin-bottom:8pt;">
+    <div>
+      <ul class="dash">
+        <li><code>AdsbDecoderService</code> — ADS-B 报文解码核心，支持飞机识别、空中/地面位置、速度、运行状态 5 类消息</li>
+        <li><code>CrcService</code> — CRC-24 多项式校验（0xFFFA0480）</li>
+        <li><code>CprDecoderService</code> — CPR 紧凑位置报告解码，奇偶帧配对 + 参考位置单帧解码</li>
+        <li><code>SimulationService</code> — 飞机模拟器，Haversine 轨迹计算，每秒 15 架飞机位置更新 + 报文生成</li>
+      </ul>
+    </div>
+    <div>
+      <ul class="dash">
+        <li>MySQL 数据库 <code>adsb_simulation</code>，4 张表自动建表</li>
+        <li>7 个单元测试全部通过，与 Python pyModeS 结果一致</li>
+        <li>H2 内存数据库模式 — 零依赖快速启动</li>
+        <li>Maven 阿里云镜像全局配置</li>
+        <li>飞机数量运行时动态调节 API</li>
+      </ul>
+    </div>
+  </div>
+
+  <table class="striped">
+    <thead>
+      <tr><th style="width:28%;">API 接口</th><th style="width:8%;">方法</th><th style="width:64%;">功能</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>/api/health</code></td><td>GET</td><td>健康检查</td></tr>
+      <tr><td><code>/api/aircraft</code></td><td>GET</td><td>飞行器列表（支持状态筛选）</td></tr>
+      <tr><td><code>/api/aircraft/positions</code></td><td>GET</td><td>所有飞机实时位置</td></tr>
+      <tr><td><code>/api/aircraft/{icao}</code></td><td>GET</td><td>单架飞机详情</td></tr>
+      <tr><td><code>/api/aircraft/{icao}/messages</code></td><td>GET</td><td>某飞机最近报文</td></tr>
+      <tr><td><code>/api/adsb/parse</code></td><td>POST</td><td>解析单条 28 位 hex 报文</td></tr>
+      <tr><td><code>/api/adsb/parse/batch</code></td><td>POST</td><td>批量解析报文</td></tr>
+      <tr><td><code>/api/simulation/start</code></td><td>POST</td><td>启动仿真（可指定飞机数/频率）</td></tr>
+      <tr><td><code>/api/simulation/stop</code></td><td>POST</td><td>停止仿真</td></tr>
+      <tr><td><code>/api/simulation/config</code></td><td>POST</td><td>运行时调整飞机数量</td></tr>
+      <tr><td><code>/api/alerts</code></td><td>GET</td><td>安全告警列表</td></tr>
+      <tr><td><code>/api/stats</code></td><td>GET</td><td>全局统计数据</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ═══════════ 前端成果 ═══════════ -->
+<section>
+  <h2>前端 · Vue 3 + TypeScript + Vite</h2>
+
+  <table class="striped">
+    <thead>
+      <tr><th style="width:22%;">页面</th><th style="width:14%;">路由</th><th style="width:64%;">功能</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>系统首页</strong></td>
+        <td><code>/</code></td>
+        <td>Leaflet 地图实时显示飞机 ✈ 图标 + 状态颜色 + 弹出详情 + 统计栏</td>
+      </tr>
+      <tr>
+        <td><strong>飞行器列表</strong></td>
+        <td><code>/aircraft</code></td>
+        <td>Element Plus 表格 + ICAO 搜索 + 状态筛选 + 点击行弹详情卡片</td>
+      </tr>
+      <tr>
+        <td><strong>报文解析</strong></td>
+        <td><code>/parse</code></td>
+        <td>输入 28 位 hex → 调用后端解析 → 字段逐行展示 + 示例报文一键填充</td>
+      </tr>
+      <tr>
+        <td><strong>安全告警</strong></td>
+        <td><code>/alerts</code></td>
+        <td>告警列表 + 等级颜色标签 + 统计卡片（红/橙/黄/总计）</td>
+      </tr>
+      <tr>
+        <td><strong>仿真控制</strong></td>
+        <td><code>/control</code></td>
+        <td>启停按钮 + 飞机数量滑块 + 实时状态显示</td>
+      </tr>
+      <tr>
+        <td><strong>数据可视化</strong></td>
+        <td><code>/data</code></td>
+        <td>ECharts 饼图 — 正常/异常飞行器比例实时刷新</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    <strong>技术栈：</strong>Vue 3.5 + TypeScript + Vite 8 + Pinia + Vue Router + Element Plus + Leaflet + ECharts + Axios。Vite 开发服务器自动代理 <code>/api</code> 到后端 <code>localhost:8080</code>，开发时无需跨域配置。
+  </div>
+</section>
+
+<!-- ═══════════ 文件统计 ═══════════ -->
+<section>
+  <h2>代码统计</h2>
+
+  <div class="two-col">
+    <div>
+      <table>
+        <thead><tr><th>后端文件</th><th>行数</th></tr></thead>
+        <tbody>
+          <tr><td><code>AdsbDecoderService.java</code></td><td>~230</td></tr>
+          <tr><td><code>SimulationService.java</code></td><td>~220</td></tr>
+          <tr><td><code>CprDecoderService.java</code></td><td>~190</td></tr>
+          <tr><td><code>AircraftController.java</code></td><td>~120</td></tr>
+          <tr><td><code>AdsbController.java</code></td><td>~60</td></tr>
+          <tr><td><code>CrcService.java</code></td><td>~50</td></tr>
+          <tr><td>4 Entity + 4 Repository</td><td>~250</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <table>
+        <thead><tr><th>前端文件</th><th>行数</th></tr></thead>
+        <tbody>
+          <tr><td><code>DashboardView.vue</code></td><td>~100</td></tr>
+          <tr><td><code>AircraftListView.vue</code></td><td>~90</td></tr>
+          <tr><td><code>MessageParseView.vue</code></td><td>~40</td></tr>
+          <tr><td><code>SecurityAlertView.vue</code></td><td>~70</td></tr>
+          <tr><td><code>SimControlView.vue</code></td><td>~60</td></tr>
+          <tr><td><code>DataView.vue</code></td><td>~45</td></tr>
+          <tr><td><code>App.vue + router + api</code></td><td>~100</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 当前状态 ═══════════ -->
+<section>
+  <h2>当前运行状态</h2>
+
+  <table>
+    <thead>
+      <tr><th style="width:18%;">检查项</th><th style="width:8%;">状态</th><th style="width:74%;">说明</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>后端编译</td><td><span class="check">✓</span></td><td><code>mvn package</code> 成功，jar 包 51MB</td></tr>
+      <tr><td>单元测试</td><td><span class="check">✓ 7/7</span></td><td>飞机识别、位置配对、速度解码、CRC、参考位置、非法输入</td></tr>
+      <tr><td>后端启动</td><td><span class="check">✓</span></td><td>H2 模式 4.5s 启动，MySQL 模式 6.2s</td></tr>
+      <tr><td>模拟器运行</td><td><span class="check">✓</span></td><td>15 架飞机，每秒更新位置，Haversine 轨迹可见移动</td></tr>
+      <tr><td>前端构建</td><td><span class="check">✓</span></td><td>6 页面全部编译通过，1.46s 构建完成</td></tr>
+      <tr><td>前后端联通</td><td><span class="check">✓</span></td><td>Vite 代理 → Spring Boot，API 返回正常</td></tr>
+      <tr><td>GitHub 推送</td><td><span class="check">✓</span></td><td>后端已推至 github.com/CodeLongBear/bigchuang</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ═══════════ 启动方式 ═══════════ -->
+<div class="callout">
+  <strong>启动演示：</strong><br>
+  后端：IDEA 打开 <code>D:\大创\adsb-backend</code>，运行 <code>AdsbSimulationApplication</code>，或命令行 <code>java -jar target/adsb-simulation-0.1.0.jar</code><br>
+  前端：<code>cd D:\大创\adsb-frontend && npm run dev</code>，浏览器打开 <code>http://localhost:5173</code><br>
+  启动后 15 架飞机会在地图上持续移动，左侧菜单可切换 6 个功能模块。
+</div>
+
+<div class="footer">
+  <span>内部 · 南京航空航天大学 · 大创项目</span>
+  <span>2026.07.29 · 下一阶段：安全检测模块</span>
+</div>
+
+</body>
+</html>

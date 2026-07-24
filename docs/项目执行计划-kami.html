@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>面向飞行器监视的安全可信ADS-B仿真系统 · 一个月项目执行计划</title>
+<meta name="author" content="熊康, 赵士睿">
+<meta name="description" content="面向飞行器监视的安全可信ADS-B仿真系统开发项目的一个月执行计划，涵盖后端SpringBoot、前端Vue3、ADS-B报文解析、安全检测与可视化仿真的完整推进方案。">
+<meta name="keywords" content="ADS-B, 仿真系统, 项目计划, SpringBoot, Vue3, 飞行器监视, 安全加密">
+<meta name="generator" content="Kami">
+<style>
+  @font-face {
+    font-family: "TsangerJinKai02";
+    src: url("../fonts/TsangerJinKai02-W04.ttf") format("truetype"),
+         url("https://cdn.jsdelivr.net/gh/tw93/Kami@main/assets/fonts/TsangerJinKai02-W04.ttf") format("truetype");
+    font-weight: 400;
+    font-style: normal;
+  }
+  @font-face {
+    font-family: "TsangerJinKai02";
+    src: url("../fonts/TsangerJinKai02-W05.ttf") format("truetype"),
+         url("https://cdn.jsdelivr.net/gh/tw93/Kami@main/assets/fonts/TsangerJinKai02-W05.ttf") format("truetype");
+    font-weight: 500;
+    font-style: normal;
+  }
+
+  @page {
+    size: A4;
+    margin: 20mm 22mm 22mm 22mm;
+    background: #f5f4ed;
+    @top-right {
+      content: string(section-title);
+      font-family: "TsangerJinKai02", "Source Han Serif SC", "Noto Serif CJK SC", "Songti SC", Georgia, serif;
+      font-size: 8pt;
+      color: #6b6a64;
+    }
+    @bottom-center {
+      content: counter(page) "  ·  项目执行计划";
+      font-family: "TsangerJinKai02", "Source Han Serif SC", "Noto Serif CJK SC", "Songti SC", Georgia, serif;
+      font-size: 9pt;
+      color: #6b6a64;
+    }
+  }
+  @page:first {
+    @top-right { content: ""; }
+    @bottom-center { content: ""; }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --parchment: #f5f4ed;
+    --ivory:     #faf9f5;
+    --near-black:#141413;
+    --dark-warm: #3d3d3a;
+    --olive:     #504e49;
+    --stone:     #6b6a64;
+    --brand:     #1B365D;
+    --border:    #e8e6dc;
+    --border-soft:#e5e3d8;
+    --tag-bg:    #E4ECF5;
+    --serif: "TsangerJinKai02", "Source Han Serif SC", "Noto Serif CJK SC", "Songti SC", "STSong", Georgia, serif;
+    --sans: var(--serif);
+    --rhythm-module:  14pt;
+    --rhythm-section: 18pt;
+  }
+
+  html, body { background: var(--parchment); }
+
+  @media screen {
+    body { max-width: 210mm; margin: 0 auto; padding: 20mm 22mm 22mm 22mm; }
+  }
+
+  body {
+    color: var(--near-black);
+    font-family: var(--serif);
+    font-size: 10.5pt;
+    line-height: 1.55;
+    letter-spacing: 0.3pt;
+    widows: 3;
+    orphans: 3;
+  }
+
+  .sans { font-family: var(--sans); }
+
+  /* ========== COVER ========== */
+  .cover {
+    min-height: 240mm;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 40mm 0 0 0;
+    break-after: page;
+  }
+  .cover-eyebrow {
+    font-family: var(--sans);
+    font-size: 10pt;
+    color: var(--brand);
+    letter-spacing: 1pt;
+    text-transform: uppercase;
+    margin-bottom: 18pt;
+  }
+  .cover-title {
+    font-size: 36pt;
+    font-weight: 500;
+    color: var(--near-black);
+    line-height: 1.15;
+    letter-spacing: 0.3pt;
+    margin-bottom: 16pt;
+  }
+  .cover-sub {
+    font-family: var(--sans);
+    font-size: 14pt;
+    color: var(--olive);
+    line-height: 1.5;
+    max-width: 85%;
+    margin-bottom: 30pt;
+  }
+  .cover-meta {
+    font-family: var(--sans);
+    font-size: 10pt;
+    color: var(--stone);
+    line-height: 1.5;
+  }
+  .cover-meta strong {
+    color: var(--dark-warm);
+    font-weight: 500;
+  }
+
+  /* ========== TOC ========== */
+  .toc { break-after: page; }
+  .toc h2 {
+    font-size: 22pt;
+    font-weight: 500;
+    margin-bottom: var(--rhythm-module);
+    border-left: 2.5pt solid var(--brand);
+    border-radius: 1.5pt;
+    padding-left: 8pt;
+  }
+  .toc-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 6pt 0;
+    border-bottom: 0.3pt dotted var(--border);
+    font-size: 11pt;
+  }
+  .toc-item:last-of-type { border-bottom: none; }
+  .toc-num {
+    color: var(--brand);
+    font-weight: 500;
+    min-width: 30pt;
+  }
+  .toc-title { flex: 1; color: var(--near-black); padding-left: 6pt; }
+  .toc-page { color: var(--stone); font-variant-numeric: tabular-nums; }
+
+  /* ========== HEADINGS ========== */
+  h1 {
+    font-size: 22pt;
+    font-weight: 500;
+    line-height: 1.2;
+    margin: 0 0 10pt 0;
+    border-left: 2.5pt solid var(--brand);
+    border-radius: 1.5pt;
+    padding-left: 8pt;
+    color: var(--near-black);
+    break-after: avoid;
+  }
+  h2 {
+    font-size: 16pt;
+    font-weight: 500;
+    line-height: 1.25;
+    margin: 24pt 0 8pt 0;
+    color: var(--near-black);
+    break-after: avoid;
+    string-set: section-title content();
+  }
+  h3 {
+    font-size: 13pt;
+    font-weight: 500;
+    line-height: 1.3;
+    margin: 18pt 0 6pt 0;
+    color: var(--dark-warm);
+    break-after: avoid;
+  }
+
+  .chapter-num {
+    font-family: var(--sans);
+    font-size: 10pt;
+    color: var(--brand);
+    letter-spacing: 1pt;
+    text-transform: uppercase;
+    margin-bottom: 6pt;
+  }
+
+  /* ========== PARAGRAPHS ========== */
+  p {
+    margin: 0 0 10pt 0;
+    line-height: 1.55;
+    color: var(--near-black);
+    widows: 2;
+    orphans: 2;
+  }
+  .lead {
+    font-size: 12pt;
+    line-height: 1.55;
+    color: var(--dark-warm);
+    margin-bottom: var(--rhythm-module);
+  }
+  .hl { color: var(--brand); font-weight: 500; }
+  strong { font-weight: 500; }
+
+  /* ========== LISTS ========== */
+  ul, ol {
+    margin: 6pt 0 10pt 0;
+    padding-left: 20pt;
+    line-height: 1.55;
+  }
+  ul li::marker { color: var(--brand); }
+  ol li::marker { color: var(--brand); font-weight: 500; }
+
+  /* ========== QUOTE ========== */
+  blockquote, .quote {
+    border-left: 2pt solid var(--brand);
+    margin: 12pt 0;
+    padding: 4pt 0 4pt 16pt;
+    color: var(--olive);
+    line-height: 1.55;
+    break-inside: avoid;
+  }
+  blockquote .cite, .quote .cite {
+    display: block;
+    font-size: 9pt;
+    color: var(--stone);
+    margin-top: 4pt;
+  }
+
+  /* ========== CODE ========== */
+  code {
+    font-family: "JetBrains Mono", "SF Mono", Consolas, "TsangerJinKai02", "Source Han Serif SC", "Noto Serif CJK SC", "Songti SC", monospace;
+    font-size: 9pt;
+    background: var(--ivory);
+    padding: 1pt 4pt;
+    border-radius: 2pt;
+    color: var(--dark-warm);
+  }
+  pre {
+    font-family: "JetBrains Mono", "SF Mono", Consolas, "TsangerJinKai02", "Source Han Serif SC", "Noto Serif CJK SC", "Songti SC", monospace;
+    font-size: 9pt;
+    line-height: 1.5;
+    background: var(--ivory);
+    border-radius: 4pt;
+    padding: 10pt 14pt;
+    margin: 10pt 0;
+    white-space: pre-wrap;
+    color: var(--near-black);
+    break-inside: avoid;
+  }
+  pre code { background: transparent; padding: 0; font-size: inherit; }
+
+  /* ========== TABLE ========== */
+  table, .kami-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9.5pt;
+    margin: 12pt 0;
+    break-inside: avoid;
+  }
+  table th, .kami-table th {
+    text-align: left;
+    font-weight: 500;
+    color: var(--dark-warm);
+    padding: 6pt 8pt;
+    border-bottom: 1pt solid var(--border);
+    background: transparent;
+  }
+  table td, .kami-table td {
+    padding: 5pt 8pt;
+    border-bottom: 0.3pt solid var(--border-soft);
+    vertical-align: top;
+  }
+  table.compact th, .kami-table.compact th { padding: 3pt 6pt; font-size: 8pt; }
+  table.compact td, .kami-table.compact td { padding: 2pt 6pt; font-size: 8pt; line-height: 1.4; }
+  table.striped tbody tr:nth-child(even) td, .kami-table.striped tbody tr:nth-child(even) td {
+    background: var(--ivory);
+  }
+
+  /* ========== CALLOUT ========== */
+  .callout {
+    background: var(--ivory);
+    border-left: 2pt solid var(--brand);
+    padding: 10pt 14pt;
+    border-radius: 3pt;
+    margin: 12pt 0;
+    line-height: 1.55;
+    break-inside: avoid;
+  }
+
+  .takeaway {
+    background: var(--ivory);
+    border-radius: 4pt;
+    padding: 10pt 14pt;
+    margin: 14pt 0;
+    break-inside: avoid;
+  }
+  .takeaway-label {
+    font-family: var(--sans);
+    font-size: 9pt;
+    color: var(--brand);
+    letter-spacing: 0.5pt;
+    text-transform: uppercase;
+    margin-bottom: 4pt;
+  }
+
+  /* ========== TAG ========== */
+  .tag {
+    display: inline-block;
+    background: var(--tag-bg);
+    color: var(--brand);
+    font-family: var(--sans);
+    font-size: 9pt;
+    font-weight: 500;
+    padding: 1pt 6pt;
+    border-radius: 3pt;
+    margin-right: 4pt;
+  }
+
+  /* ========== METRIC ========== */
+  .metric-grid {
+    display: flex;
+    gap: 14pt;
+    margin: 14pt 0;
+    break-inside: avoid;
+  }
+  .metric {
+    flex: 1;
+    background: var(--ivory);
+    border-radius: 6pt;
+    padding: 12pt 14pt;
+    text-align: center;
+  }
+  .metric-value {
+    font-family: var(--serif);
+    font-size: 20pt;
+    font-weight: 500;
+    color: var(--brand);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2;
+  }
+  .metric-label {
+    font-size: 9pt;
+    color: var(--olive);
+    margin-top: 4pt;
+  }
+
+  /* ========== FIGURE ========== */
+  figure {
+    margin: 14pt 0;
+    break-inside: avoid;
+  }
+  figure img {
+    max-width: 100%;
+    border-radius: 4pt;
+  }
+  figcaption {
+    font-family: var(--sans);
+    font-size: 9pt;
+    color: var(--stone);
+    margin-top: 6pt;
+    text-align: center;
+  }
+
+  /* ========== EXEC SUMMARY ========== */
+  .exec-summary {
+    background: var(--ivory);
+    border-left: 1.4pt solid var(--brand);
+    border-radius: 6pt;
+    padding: 16pt 20pt;
+    margin: 14pt 0;
+    break-inside: avoid;
+  }
+  .exec-summary h2 { margin-top: 0; font-size: 13pt; }
+
+  /* ========== CHAPTER BREAK ========== */
+  .chapter { break-before: page; }
+
+  /* ========== STATUS GRID ========== */
+  .status-grid {
+    display: flex;
+    gap: 12pt;
+    margin: 12pt 0;
+    break-inside: avoid;
+  }
+  .status-card {
+    flex: 1;
+    background: var(--ivory);
+    border-radius: 6pt;
+    padding: 12pt 14pt;
+  }
+  .status-card h3 {
+    font-size: 11pt;
+    margin: 0 0 6pt 0;
+    color: var(--near-black);
+  }
+  .status-card .done { color: #2d6a4f; }
+  .status-card .pending { color: var(--brand); }
+  .status-dot {
+    display: inline-block;
+    width: 7pt;
+    height: 7pt;
+    border-radius: 50%;
+    margin-right: 4pt;
+  }
+  .dot-green { background: #2d6a4f; }
+  .dot-blue { background: var(--brand); }
+  .dot-none { background: var(--border); }
+
+  /* ========== WEEK CARD ========== */
+  .week-header {
+    display: flex;
+    align-items: baseline;
+    gap: 10pt;
+    margin-bottom: 8pt;
+  }
+  .week-num {
+    font-size: 28pt;
+    font-weight: 500;
+    color: var(--brand);
+    line-height: 1;
+  }
+  .week-range {
+    font-size: 10pt;
+    color: var(--stone);
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ 封面 ═══════════════ -->
+<section class="cover">
+  <div>
+    <div class="cover-eyebrow">项目执行计划 · Project Execution Plan</div>
+    <div class="cover-title">面向飞行器监视的<br>安全可信ADS-B仿真系统</div>
+    <div class="cover-sub">一个月核心功能开发冲刺计划 —— 从设计文档到可演示系统原型。<br>覆盖后端 SpringBoot 服务、前端 Vue3 可视化、ADS-B 报文模拟与安全检测全链路。</div>
+  </div>
+  <div class="cover-meta">
+    <strong>熊康（后端）· 赵士睿（前端）</strong><br>
+    指导教师：朱友文 教授 · 南京航空航天大学<br>
+    版本 V1.0  ·  2026.07.22 — 2026.08.21<br>
+    第二阶段：核心功能开发
+  </div>
+</section>
+
+<!-- ═══════════════ 目录 ═══════════════ -->
+<section class="toc">
+  <h2>目录</h2>
+  <div class="toc-item">
+    <span class="toc-num">01</span>
+    <span class="toc-title">执行摘要 —— 一个月总目标</span>
+  </div>
+  <div class="toc-item">
+    <span class="toc-num">02</span>
+    <span class="toc-title">现状诊断 —— 起点与差距</span>
+  </div>
+  <div class="toc-item">
+    <span class="toc-num">03</span>
+    <span class="toc-title">四周执行计划 —— 逐日任务分解</span>
+  </div>
+  <div class="toc-item">
+    <span class="toc-num">04</span>
+    <span class="toc-title">模块分工与风险管理</span>
+  </div>
+  <div class="toc-item">
+    <span class="toc-num">05</span>
+    <span class="toc-title">启动清单与检查节点</span>
+  </div>
+</section>
+
+<!-- ═══════════════ Chapter 01：执行摘要 ═══════════════ -->
+<section class="chapter">
+  <div class="chapter-num">01 · Executive Summary</div>
+  <h1>执行摘要</h1>
+
+  <p class="lead">
+    本项目处于整体计划的<span class="hl">第二阶段：核心功能开发（2026.07—2026.09）</span>。
+    当前已完成技术储备、环境搭建与前端详细设计，接下来一个月需要在
+    <span class="hl">后端服务、前端可视化、报文模拟与安全检测</span>四条线上并行推进，
+    目标是在 8 月 21 日前交付第一版可演示的系统原型。
+  </p>
+
+  <div class="exec-summary">
+    <h2>一个月总目标</h2>
+    <p>打出第一版可演示的系统原型：后端能跑起来 → 数据能模拟生成 → 前端能看到飞机 → 地图上能动 → 异常能告警。核心思路是<span class="hl">先跑通链路，再打磨细节</span>。</p>
+  </div>
+
+  <h2>四周里程碑</h2>
+
+  <!-- Timeline SVG -->
+  <figure>
+    <svg viewBox="0 0 960 280" xmlns="http://www.w3.org/2000/svg" style="width:100%; max-height:280px;">
+      <defs>
+        <pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse">
+          <circle cx="1" cy="1" r="0.9" fill="#E3E2DC"/>
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill="#f5f4ed"/>
+      <rect width="100%" height="100%" fill="url(#dots)" opacity="0.55"/>
+
+      <!-- Horizontal axis -->
+      <line x1="60" y1="120" x2="900" y2="120" stroke="#b8b7b0" stroke-width="1.4"/>
+      <path d="M 894,116 L 900,120 L 894,124" fill="none" stroke="#b8b7b0" stroke-width="1.5" stroke-linecap="round"/>
+
+      <!-- W1: x=140, ABOVE -->
+      <line x1="140" y1="112" x2="140" y2="68" stroke="#6b6a64" stroke-width="1" stroke-dasharray="3,3"/>
+      <circle cx="140" cy="120" r="5" fill="#6b6a64" stroke="#f5f4ed" stroke-width="1.5"/>
+      <rect x="60" y="28" width="160" height="40" rx="4" fill="#f5f4ed" stroke="#e8e6dc" stroke-width="0.8"/>
+      <text x="140" y="43" fill="#6b6a64" font-size="7.5" font-family="'JetBrains Mono', monospace" text-anchor="middle" letter-spacing="0.15em">7/23 — 7/29</text>
+      <text x="140" y="58" fill="#141413" font-size="10" font-weight="500" font-family="inherit" text-anchor="middle">后端地基 · 数据库</text>
+
+      <!-- W2: x=340, BELOW · FOCAL -->
+      <line x1="340" y1="128" x2="340" y2="176" stroke="#1B365D" stroke-width="1.2"/>
+      <circle cx="340" cy="120" r="6" fill="#1B365D" stroke="#f5f4ed" stroke-width="1.5"/>
+      <rect x="260" y="176" width="160" height="48" rx="4" fill="#EEF2F7" stroke="#1B365D" stroke-width="1"/>
+      <text x="340" y="193" fill="#1B365D" font-size="7.5" font-family="'JetBrains Mono', monospace" text-anchor="middle" letter-spacing="0.15em">7/30 — 8/5 · FOCAL</text>
+      <text x="340" y="212" fill="#141413" font-size="10.5" font-weight="500" font-family="inherit" text-anchor="middle">可视化 · 安全检测链路通</text>
+
+      <!-- W3: x=540, ABOVE -->
+      <line x1="540" y1="112" x2="540" y2="68" stroke="#6b6a64" stroke-width="1" stroke-dasharray="3,3"/>
+      <circle cx="540" cy="120" r="5" fill="#504e49" stroke="#f5f4ed" stroke-width="1.5"/>
+      <rect x="460" y="28" width="160" height="40" rx="4" fill="#f5f4ed" stroke="#e8e6dc" stroke-width="0.8"/>
+      <text x="540" y="43" fill="#6b6a64" font-size="7.5" font-family="'JetBrains Mono', monospace" text-anchor="middle" letter-spacing="0.15em">8/6 — 8/12</text>
+      <text x="540" y="58" fill="#141413" font-size="10" font-weight="500" font-family="inherit" text-anchor="middle">加密模块 · 仿真控制</text>
+
+      <!-- W4: x=740, BELOW -->
+      <line x1="740" y1="128" x2="740" y2="176" stroke="#6b6a64" stroke-width="1" stroke-dasharray="3,3"/>
+      <circle cx="740" cy="120" r="5" fill="#504e49" stroke="#f5f4ed" stroke-width="1.5"/>
+      <rect x="660" y="176" width="160" height="40" rx="4" fill="#f5f4ed" stroke="#e8e6dc" stroke-width="0.8"/>
+      <text x="740" y="191" fill="#6b6a64" font-size="7.5" font-family="'JetBrains Mono', monospace" text-anchor="middle" letter-spacing="0.15em">8/13 — 8/21</text>
+      <text x="740" y="206" fill="#141413" font-size="10" font-weight="500" font-family="inherit" text-anchor="middle">收尾打磨 · 可演示交付</text>
+
+      <!-- Legend -->
+      <line x1="40" y1="250" x2="920" y2="250" stroke="#DEDED7" stroke-width="0.8"/>
+      <circle cx="47" cy="264" r="6" fill="#1B365D" stroke="#f5f4ed" stroke-width="1.5"/>
+      <text x="58" y="268" fill="#504e49" font-size="8" font-family="inherit">关键里程碑（核心链路打通）</text>
+      <circle cx="250" cy="264" r="5" fill="#504e49" stroke="#f5f4ed" stroke-width="1.5"/>
+      <text x="261" y="268" fill="#504e49" font-size="8" font-family="inherit">标准检查节点</text>
+    </svg>
+    <figcaption>四周里程碑时间线。第二周末为关键节点 —— 届时前后端核心链路应完全打通，地图上有飞机、异常能触发告警。</figcaption>
+  </figure>
+
+  <div class="metric-grid">
+    <div class="metric">
+      <div class="metric-value">4</div>
+      <div class="metric-label">周开发周期</div>
+    </div>
+    <div class="metric">
+      <div class="metric-value">30</div>
+      <div class="metric-label">个可执行日任务</div>
+    </div>
+    <div class="metric">
+      <div class="metric-value">6</div>
+      <div class="metric-label">大前端模块</div>
+    </div>
+    <div class="metric">
+      <div class="metric-value">4</div>
+      <div class="metric-label">关键检查节点</div>
+    </div>
+  </div>
+
+  <div class="takeaway">
+    <div class="takeaway-label">本文档回答的问题</div>
+    <ul>
+      <li>从今天起，每一天具体应该做什么？谁来做？产出什么？</li>
+      <li>四周结束时，系统应该达到什么状态？如何衡量进度？</li>
+      <li>风险在哪？遇到阻碍时如何降级处理？</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ═══════════════ Chapter 02：现状诊断 ═══════════════ -->
+<section class="chapter">
+  <div class="chapter-num">02 · Current Status</div>
+  <h1>现状诊断 —— 起点与差距</h1>
+
+  <p class="lead">
+    项目已按计划完成<span class="hl">第一阶段（2026.04—2026.06）</span>的全部准备工作，正处于第一阶段收尾与第二阶段启动的关键衔接期。
+  </p>
+
+  <h2>各维度完成情况</h2>
+
+  <div class="status-grid">
+    <div class="status-card">
+      <h3><span class="status-dot dot-green"></span>理论知识</h3>
+      <p style="font-size:9.5pt;color:var(--olive);">ADS-B 协议、加密算法、区块链溯源机制已学习完毕。pyModeS 解码验证通过。</p>
+    </div>
+    <div class="status-card">
+      <h3><span class="status-dot dot-green"></span>开发环境</h3>
+      <p style="font-size:9.5pt;color:var(--olive);">GNU Radio、SpringBoot、Vue3、MySQL 环境已全部搭建完成。</p>
+    </div>
+    <div class="status-card">
+      <h3><span class="status-dot dot-green"></span>方案设计</h3>
+      <p style="font-size:9.5pt;color:var(--olive);">前端 6 模块详细功能设计完成。数据库表结构初步确定。技术路线清晰。</p>
+    </div>
+  </div>
+
+  <div class="status-grid">
+    <div class="status-card">
+      <h3><span class="status-dot dot-blue"></span>后端开发</h3>
+      <p style="font-size:9.5pt;color:var(--olive);">Python decode.py 已实现报文解析原型。<span class="hl">待移植为 Java</span>。API、数据库、加密模块均未启动。</p>
+    </div>
+    <div class="status-card">
+      <h3><span class="status-dot dot-blue"></span>前端开发</h3>
+      <p style="font-size:9.5pt;color:var(--olive);">6 模块功能设计文档已完成。<span class="hl">代码尚未创建</span>。Vue3 脚手架待初始化。</p>
+    </div>
+    <div class="status-card">
+      <h3><span class="status-dot dot-blue"></span>报文模拟与安全</h3>
+      <p style="font-size:9.5pt;color:var(--olive);">解码端已就绪。<span class="hl">模拟生成端和安全检测端缺失</span>。加密算法待集成。</p>
+    </div>
+  </div>
+
+  <h2>核心技术栈确认</h2>
+
+  <table class="striped">
+    <thead>
+      <tr>
+        <th>层级</th>
+        <th>技术选型</th>
+        <th>理由</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="tag">报文模拟</span></td>
+        <td>GNU Radio Companion / Java 软件模拟</td>
+        <td>先纯软件模拟生成，不依赖硬件设备，后续可对接 GNU Radio</td>
+      </tr>
+      <tr>
+        <td><span class="tag">后端服务</span></td>
+        <td>Spring Boot 3.x + Spring Data JPA</td>
+        <td>成熟稳定，团队有基础。JPA 快速建模迭代</td>
+      </tr>
+      <tr>
+        <td><span class="tag">前端可视化</span></td>
+        <td>Vue 3 + Element Plus + ECharts + Leaflet</td>
+        <td>组件化开发效率高，Element Plus 提供完整 UI 组件库</td>
+      </tr>
+      <tr>
+        <td><span class="tag">数据存储</span></td>
+        <td>MySQL 8.0</td>
+        <td>关系型数据库，适合结构化 ADS-B 报文数据的查询与统计</td>
+      </tr>
+      <tr>
+        <td><span class="tag">安全核心</span></td>
+        <td>区块链溯源 + 身份基广播加密</td>
+        <td>课题组已有算法基础，先做 AES/HMAC 简化版保证链路通畅</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    <strong>关键判断：</strong>从「设计阶段」转入「开发阶段」的最大风险不是技术难度，而是「启动惯性」——文档写得越详细，越容易产生「已经做完了」的错觉。当前最紧迫的事是<strong>立即动手写代码，哪怕第一版很粗糙</strong>。
+  </div>
+</section>
+
+<!-- ═══════════════ Chapter 03：四周执行计划 ═══════════════ -->
+<section class="chapter">
+  <div class="chapter-num">03 · Execution Plan</div>
+  <h1>四周执行计划 —— 逐日任务分解</h1>
+
+  <p class="lead">
+    每周聚焦一个核心主题。工作日开发新功能，周末缓冲查漏补缺。
+    每个任务标注负责人 🅑（后端·熊康）和 🅕（前端·赵士睿）。
+  </p>
+
+  <!-- ===== 第一周 ===== -->
+  <div class="week-header">
+    <span class="week-num">01</span>
+    <div>
+      <h2 style="margin:0;">第一周 · 后端地基 + 数据库搭建</h2>
+      <span class="week-range">7/23 — 7/29 ｜ 目标：前后端能通信，数据库能读写，模拟器能产生数据</span>
+    </div>
+  </div>
+
+  <table class="compact striped">
+    <thead>
+      <tr>
+        <th style="width:12%;">日期</th>
+        <th style="width:10%;">负责人</th>
+        <th style="width:78%;">任务列表</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Day 1</strong><br>7/23 周三</td>
+        <td>🅑 🅕</td>
+        <td>
+          <strong>🅑</strong> 用 Spring Initializr 创建 Spring Boot 3.x 项目（依赖：Spring Web / JPA / MySQL Driver / Lombok / Validation），初始化 Git 仓库，配置 application.yml，跑通 Hello World。<br>
+          <strong>🅕</strong> 用 <code>npm create vue@latest</code> 创建 Vue 3 项目（Router / Pinia / TS），安装 Element Plus + ECharts + Leaflet，配置 6 模块路由结构。
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Day 2</strong><br>7/24 周四</td>
+        <td>🅑</td>
+        <td>
+          <strong>🅑</strong> 设计并创建 MySQL 数据库 <code>adsb_simulation</code>，包含 4 张核心表：<code>aircraft</code>（飞行器）、<code>adsb_message</code>（报文记录）、<code>security_alert</code>（安全告警）、<code>simulation_config</code>（仿真控制）。创建对应 JPA Entity 和 Repository。
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Day 3</strong><br>7/25 周五</td>
+        <td>🅑 🅕</td>
+        <td>
+          <strong>🅑</strong> 把 Python decode.py 移植为 Java 版本：<code>AdsbDecoderService</code> + <code>CrcService</code> + <code>CprDecoderService</code>。用 5 条测试报文验证解析结果与 Python 一致。<br>
+          <strong>🅕</strong> 搭建页面布局框架（Element Plus Container），实现左侧 6 模块导航菜单 + 路由跳转。
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Day 4-5</strong><br>7/26—27 周末</td>
+        <td>🅑 🅕</td>
+        <td>查漏补缺：测试已有代码覆盖率，补充边界条件，各自优化代码结构。<span style="color:var(--stone);">这两天不排新任务。</span></td>
+      </tr>
+      <tr>
+        <td><strong>Day 6</strong><br>7/28 周一</td>
+        <td>🅑</td>
+        <td>
+          <strong>🅑</strong> 创建 <code>SimulationService</code>，实现软件模拟 ADS-B 报文生成（随机 ICAO、中国空域经纬度范围、合理高度/速度范围）。实现 <code>POST /api/simulation/start</code> 和 <code>/stop</code> API，用 @Scheduled 定时产生模拟报文流。
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Day 7</strong><br>7/29 周二</td>
+        <td>🅑 🅕</td>
+        <td>
+          <strong>🅑</strong> 实现 <code>AircraftController</code>（列表/详情/报文历史 API），配置 CORS 解决跨域。<br>
+          <strong>🅕</strong> 封装 Axios 工具，调用后端接口获取数据并在首页展示。<br>
+          <span class="hl">🎯 里程碑 1：前后端首次数据联通！</span>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ===== 第二周 ===== -->
+  <div class="week-header" style="margin-top:24pt;">
+    <span class="week-num">02</span>
+    <div>
+      <h2 style="margin:0;">第二周 · 核心可视化 + 安全检测</h2>
+      <span class="week-range">7/30 — 8/5 ｜ 目标：地图上有飞机，告警能触发，核心链路完整</span>
+    </div>
+  </div>
+
+  <table class="compact striped">
+    <thead>
+      <tr>
+        <th style="width:12%;">日期</th>
+        <th style="width:10%;">负责人</th>
+        <th style="width:78%;">任务列表</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Day 8</strong><br>7/30 周三</td>
+        <td>🅑 🅕</td>
+        <td>
+          <strong>🅕</strong> 集成 Leaflet.js 地图，初始化中国视图中心，创建飞机 Marker 组件，从后端获取位置列表并渲染。3 秒轮询更新。<br>
+          <strong>🅑</strong> 实现 <code>GET /api/aircraft/positions</code>，让模拟数据中的经纬度随时间微调（模拟飞行轨迹）。
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Day 9</strong><br>7/31 周四</td>
+        <td>🅕</td>
+        <td>
+          <strong>🅕</strong> 实现「模块 2：飞行器信息列表」页面（Element Plus 表格，ICAO/呼号/高度/速度/经纬度/状态），搜索框 + 状态筛选下拉框，点击行弹出详情卡片 + 地图定位联动。
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Day 10</strong><br>8/1 周五</td>
+        <td>🅑</td>
+        <td>
+          <strong>🅑</strong> 创建 <code>SecurityCheckService</code>，实现 5 条检测规则：CRC 校验失败 / 位置跳变（30s 内 &gt;100km）/ 高度突变（30s 内 &gt;5,000ft）/ 速度超限（&gt;650kt）/ 报文重复（疑似重放）。检测到异常写入 <code>security_alert</code> 表。
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Day 11-12</strong><br>8/2—3 周末</td>
+        <td>🅑 🅕</td>
+        <td>在模拟数据中故意插入异常数据验证检测效果。前端代码 review 和重构。</td>
+      </tr>
+      <tr>
+        <td><strong>Day 13</strong><br>8/4 周一</td>
+        <td>🅕</td>
+        <td>
+          <strong>🅕</strong> 实现「模块 4：安全监控与告警」页面（统计卡片 + 告警列表 + 颜色等级标签 + 点击展开详情）。<br>
+          <strong>🅑</strong> 实现告警统计 API <code>GET /api/alerts/stats</code> 和处理 API。
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Day 14</strong><br>8/5 周二</td>
+        <td>🅑 🅕</td>
+        <td>
+          前后端联调：模拟器产生数据 → 后端解析存储 → 前端地图展示 → 异常检测告警。整理当前问题和待办。<br>
+          <span class="hl">🎯 里程碑 2：核心链路打通！数据能从头流到尾。</span>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ===== 第三周 ===== -->
+  <div class="week-header" style="margin-top:24pt;">
+    <span class="week-num">03</span>
+    <div>
+      <h2 style="margin:0;">第三周 · 加密模块 + 报文解析 + 仿真控制</h2>
+      <span class="week-range">8/6 — 8/12 ｜ 目标：加密链路可演示，仿真可控，图表可视化</span>
+    </div>
+  </div>
+
+  <table class="compact striped">
+    <thead>
+      <tr>
+        <th style="width:12%;">日期</th>
+        <th style="width:10%;">负责人</th>
+        <th style="width:78%;">任务列表</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Day 15</strong><br>8/6 周三</td>
+        <td>🅑 🅕</td>
+        <td>
+          <strong>🅑</strong> 创建 <code>EncryptionService</code> 接口 + AES 简化版实现。加密 API: <code>POST /api/crypto/encrypt</code> / <code>/decrypt</code>。<br>
+          <strong>🅕</strong> 实现「模块 3：ADS-B 报文解析」页面（28 位 hex 输入框 + 解析按钮 + 结果展示表 + CRC 校验绿色/红色标识 + 示例报文一键填充）。
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Day 16</strong><br>8/7 周四</td>
+        <td>🅑 🅕</td>
+        <td>
+          <strong>🅑</strong> 实现报文解析 API <code>POST /api/adsb/parse</code>（含完整字段语义注释）和批量解析 API。<br>
+          <strong>🅕</strong> 报文字段可视化标注（不同颜色高亮字段段）+ 历史解析记录列表。
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Day 17</strong><br>8/8 周五</td>
+        <td>🅑</td>
+        <td>
+          <strong>🅑</strong> 将加密/解密集成到模拟数据流中：生成 → 加密 → 存储 → 请求时解密返回。<br>
+          实现报文验证 API <code>POST /api/adsb/verify</code>。
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Day 18-19</strong><br>8/9—10 周末</td>
+        <td>🅑 🅕</td>
+        <td>加密模块单元测试。整体链路压力测试（50 架飞机同时模拟）。代码注释补充。</td>
+      </tr>
+      <tr>
+        <td><strong>Day 20</strong><br>8/11 周一</td>
+        <td>🅕 🅑</td>
+        <td>
+          <strong>🅕</strong> 实现「模块 5：仿真控制与设置」页面（启停大按钮 / 飞机数量滑块 1-100 / 报文频率滑块 100ms-5s / 攻击模拟开关）。<br>
+          <strong>🅑</strong> 仿真控制 API + 攻击模拟逻辑（位置欺骗：偏移 500km / 数据篡改：随机改高度字段）。
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Day 21</strong><br>8/12 周二</td>
+        <td>🅕 🅑</td>
+        <td>
+          <strong>🅕</strong> 实现「模块 6：数据可视化」（实时高度折线图 + 速度折线图 + 安全状态饼图 + 报文类型统计柱状图，全部 ECharts 动态刷新）。<br>
+          <strong>🅑</strong> 统计 API：报文类型分布 / 安全状态比例 / 单机轨迹数据。<br>
+          <span class="hl">🎯 里程碑 3：图表动起来了，系统有「看头」了。</span>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ===== 第四周 ===== -->
+  <div class="week-header" style="margin-top:24pt;">
+    <span class="week-num">04</span>
+    <div>
+      <h2 style="margin:0;">第四周 · 收尾打磨 + 演示准备</h2>
+      <span class="week-range">8/13 — 8/21 ｜ 目标：系统完整可演示，文档齐全，Bug 已修复</span>
+    </div>
+  </div>
+
+  <table class="compact striped">
+    <thead>
+      <tr>
+        <th style="width:12%;">日期</th>
+        <th style="width:10%;">负责人</th>
+        <th style="width:78%;">任务列表</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Day 22</strong><br>8/13 周三</td>
+        <td>🅕 🅑</td>
+        <td>
+          <strong>🅕</strong> 实时报文日志流（类似控制台自动滚动 / ICAO 筛选 / 异常高亮）。<br>
+          <strong>🅑</strong> 日志 API：<code>GET /api/logs/recent?limit=100</code>。
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Day 23</strong><br>8/14 周四</td>
+        <td>🅕</td>
+        <td>
+          <strong>🅕</strong> 完善模块 1「系统首页」：顶部状态栏（在线飞机数/总报文数/异常数）、地图全屏（飞机位置+轨迹线+状态颜色）、右侧安全态势面板、底部实时日志滚动条。整体美观调整。
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Day 24</strong><br>8/15 周五</td>
+        <td>🅑 🅕</td>
+        <td>
+          <strong>🅑</strong> 实现数据导出 API：<code>GET /api/export/messages</code> 和 <code>/alerts</code>（CSV 格式）。<br>
+          <strong>🅕</strong> 数据页面添加「导出 CSV」按钮 + 时间范围选择器 + 下载功能。
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Day 25-26</strong><br>8/16—17 周末</td>
+        <td>🅑 🅕</td>
+        <td>全面走查：启动仿真 20 架 → 地图看飞机 → 列表查数据 → 手动解析报文 → 开启攻击模拟触发告警 → 查图表 → 导出 CSV。记录 Bug 清单并修复阻断性问题。</td>
+      </tr>
+      <tr>
+        <td><strong>Day 27</strong><br>8/18 周一</td>
+        <td>🅑 🅕</td>
+        <td>Bug 修复 + 细节打磨（统一错误提示 / Loading 状态 / 空数据提示 / 404/500 页面 / 多分辨率适配）。</td>
+      </tr>
+      <tr>
+        <td><strong>Day 28</strong><br>8/19 周二</td>
+        <td>🅑 🅕</td>
+        <td>
+          <strong>🅑</strong> 打包 Spring Boot jar + 写 README.md + 准备演示初始数据。<br>
+          <strong>🅕</strong> 打包 Vue 前端（<code>npm run build</code>）+ 配置生产环境 API 地址。<br>
+          全团队：本地完整部署验证。
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Day 29-30</strong><br>8/20—21</td>
+        <td>🅑 🅕</td>
+        <td>
+          更新项目文档（开发日志 / 中期检查表 / 导师汇报 PPT 补充）。整理下月计划。<br>
+          <span class="hl">🎯 里程碑 4：第一个月闭环完成 —— 拥有可演示的系统原型 + 完整文档。</span>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ═══════════════ Chapter 04：模块分工与风险管理 ═══════════════ -->
+<section class="chapter">
+  <div class="chapter-num">04 · Division &amp; Risk</div>
+  <h1>模块分工与风险管理</h1>
+
+  <p class="lead">
+    六个前端模块与后端 API 存在清晰的一一对应关系。以下按模块梳理前后端分工，
+    标注 🔑 表示该模块的核心工作量所在。
+  </p>
+
+  <h2>模块分工速查表</h2>
+
+  <table class="striped">
+    <thead>
+      <tr>
+        <th style="width:8%;">模块</th>
+        <th style="width:25%;">名称</th>
+        <th style="width:34%;">后端（熊康）</th>
+        <th style="width:33%;">前端（赵士睿）</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="text-align:center;">M1</td>
+        <td>系统首页全局监控</td>
+        <td>位置 API / 统计 API</td>
+        <td>🔑 地图 + 状态面板 + 态势</td>
+      </tr>
+      <tr>
+        <td style="text-align:center;">M2</td>
+        <td>飞行器信息列表</td>
+        <td>🔑 查询 / 过滤 API</td>
+        <td>表格 + 详情卡片 + 搜索</td>
+      </tr>
+      <tr>
+        <td style="text-align:center;">M3</td>
+        <td>ADS-B 报文解析</td>
+        <td>🔑 解析 / 验证 API</td>
+        <td>输入框 + 结果展示 + 字段标注</td>
+      </tr>
+      <tr>
+        <td style="text-align:center;">M4</td>
+        <td>安全监控告警</td>
+        <td>🔑 检测 / 告警 API</td>
+        <td>告警列表 + 统计 + 详情</td>
+      </tr>
+      <tr>
+        <td style="text-align:center;">M5</td>
+        <td>仿真控制设置</td>
+        <td>🔑 仿真 / 攻击 API</td>
+        <td>控制面板 + 滑块 + 开关</td>
+      </tr>
+      <tr>
+        <td style="text-align:center;">M6</td>
+        <td>数据可视化日志</td>
+        <td>🔑 统计 / 导出 API</td>
+        <td>图表 + 日志流 + 导出</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>风险识别与应对策略</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width:28%;">风险</th>
+        <th style="width:10%;">概率</th>
+        <th style="width:10%;">影响</th>
+        <th style="width:52%;">应对策略</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>加密算法太复杂</strong>，一个月集成不完</td>
+        <td>中</td>
+        <td>高</td>
+        <td>先用 AES/HMAC 做简化版，保证链路能跑通。真实算法后续替换，接口不变。</td>
+      </tr>
+      <tr>
+        <td><strong>GNU Radio 对接困难</strong>，报文模拟卡住</td>
+        <td>中</td>
+        <td>中</td>
+        <td>先用纯 Java 软件模拟生成（随机 + pyModeS 逻辑），不依赖硬件和 GNU Radio。</td>
+      </tr>
+      <tr>
+        <td><strong>前端地图性能问题</strong>，飞机太多卡顿</td>
+        <td>低</td>
+        <td>低</td>
+        <td>控制模拟飞机 ≤50 架。使用 Leaflet 聚合 Marker。必要时降级为 3 秒轮询。</td>
+      </tr>
+      <tr>
+        <td><strong>队友进度不同步</strong>，API 接口对不上</td>
+        <td>中</td>
+        <td>中</td>
+        <td>每天 15 分钟同步站会。前后端接口文档先定义再开发。每周检查节点强制对齐。</td>
+      </tr>
+      <tr>
+        <td><strong>调试花太多时间</strong>，挤占开发时间</td>
+        <td>中</td>
+        <td>中</td>
+        <td>先写单元测试再集成。前 3 天的基础打好（数据库、脚手架、API 框架），后续效率翻倍。</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    <strong>降级原则：</strong>遇到阻塞超过半天的技术问题，立即启动降级方案（简化实现），<strong>保证每周检查节点的交付物不延期</strong>。功能完善可以后续迭代，链路中断不可接受。
+  </div>
+</section>
+
+<!-- ═══════════════ Chapter 05：启动清单与检查节点 ═══════════════ -->
+<section class="chapter">
+  <div class="chapter-num">05 · Launch &amp; Checkpoints</div>
+  <h1>启动清单与检查节点</h1>
+
+  <p class="lead">
+    以下是<strong>今天就能做</strong>的 5 件事，以及每周日应执行的进度检查标准。
+  </p>
+
+  <h2>🚀 今日立即行动清单</h2>
+
+  <ol>
+    <li><strong>熊康</strong>：打开 <code>start.spring.io</code>，创建 Spring Boot 3.x 项目骨架，导入 IDE，跑通 <code>localhost:8080</code>。</li>
+    <li><strong>赵士睿</strong>：打开终端，执行 <code>npm create vue@latest adsb-frontend</code>，安装 Element Plus + ECharts + Leaflet，跑通 <code>localhost:5173</code>。</li>
+    <li><strong>两人</strong>：把两个项目推到 GitHub <strong>私有仓库</strong>，互相加 collaborator。</li>
+    <li><strong>熊康</strong>：安装 MySQL 8.0，创建 <code>adsb_simulation</code> 数据库，配置好 Spring Boot 连接。</li>
+    <li><strong>两人</strong>：各自把开发环境跑通，截图发群里确认。今天的目标就是「两个项目都能启动」。</li>
+  </ol>
+
+  <h2>每周检查标准</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width:8%;">周次</th>
+        <th style="width:15%;">检查日期</th>
+        <th style="width:77%;">通过标准</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="text-align:center;"><span class="tag">W1</span></td>
+        <td>7/29 周二</td>
+        <td>前端调用后端 API 能拿到数据。数据库 4 张表能正常读写。模拟器能持续产生 ADS-B 报文。报文解析结果与 Python 版一致。</td>
+      </tr>
+      <tr>
+        <td style="text-align:center;"><span class="tag">W2</span></td>
+        <td>8/5 周二</td>
+        <td>地图上能看到 10+ 架飞机图标并持续移动。安全检测模块能触发告警（故意注入异常数据时）。飞机列表页完整可用（搜索/筛选/详情）。</td>
+      </tr>
+      <tr>
+        <td style="text-align:center;"><span class="tag">W3</span></td>
+        <td>8/12 周二</td>
+        <td>报文解析页面能输入 hex 并展示完整解析结果。加密/解密链路可演示。仿真控制面板能启停仿真并调节参数。至少 3 种图表正常展示。</td>
+      </tr>
+      <tr>
+        <td style="text-align:center;"><span class="tag">W4</span></td>
+        <td>8/21 周四</td>
+        <td>完整流程走通无阻断性 Bug。README 可指导他人部署运行。演示视频或截图准备就绪。项目文档（开发日志/中期检查表）已更新。</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>每周节奏建议</h2>
+
+  <table class="striped">
+    <thead>
+      <tr>
+        <th style="width:14%;">时间段</th>
+        <th style="width:86%;">做什么</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>每天早上 10:00</td>
+        <td>15 分钟同步站会：昨天做了什么？今天要做什么？有什么阻碍？</td>
+      <tr>
+        <td>周一至周五</td>
+        <td>按日计划推进开发。每天至少向 GitHub 推送一次代码。</td>
+      </tr>
+      <tr>
+        <td>周六</td>
+        <td>缓冲日：补上本周未完成的任务，写单元测试，做代码 review。</td>
+      </tr>
+      <tr>
+        <td>周日</td>
+        <td>对照检查标准自测。更新本周完成情况。规划下周细节。休息。</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="takeaway">
+    <div class="takeaway-label">Call to Action</div>
+    <p>这一个月，把 PPT 上的设计变成浏览器里能跑的系统。<strong>不要追求完美，先追求「有」。</strong>今天下午就动手建项目。</p>
+  </div>
+
+  <p style="text-align:center;color:var(--stone);font-size:9pt;margin-top:24pt;">
+    —— 计划制定于 2026.07.22 · 南京航空航天大学 ——
+  </p>
+</section>
+
+</body>
+</html>

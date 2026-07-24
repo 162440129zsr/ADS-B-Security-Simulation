@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>ADS-B仿真系统 · 一周冲刺计划</title>
+<meta name="author" content="熊康, 赵士睿">
+<meta name="description" content="基于 RID 项目架构参考，制定 ADS-B 仿真系统一周内从后端解码到前端可视化全链路打通的执行计划。">
+<meta name="keywords" content="ADS-B, 仿真系统, 一周计划, Spring Boot, Vue3, 项目执行">
+<meta name="generator" content="Kami">
+<style>
+  @font-face {
+    font-family: "TsangerJinKai02";
+    src: url("../fonts/TsangerJinKai02-W04.ttf") format("truetype"),
+         url("https://cdn.jsdelivr.net/gh/tw93/Kami@main/assets/fonts/TsangerJinKai02-W04.ttf") format("truetype");
+    font-weight: 400; font-style: normal;
+  }
+  @font-face {
+    font-family: "TsangerJinKai02";
+    src: url("../fonts/TsangerJinKai02-W05.ttf") format("truetype"),
+         url("https://cdn.jsdelivr.net/gh/tw93/Kami@main/assets/fonts/TsangerJinKai02-W05.ttf") format("truetype");
+    font-weight: 500; font-style: normal;
+  }
+
+  @page { size: A4; margin: 14mm 17mm 14mm 17mm; background: #f5f4ed; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --parchment: #f5f4ed;
+    --ivory:     #faf9f5;
+    --near-black:#141413;
+    --dark-warm: #3d3d3a;
+    --olive:     #504e49;
+    --stone:     #6b6a64;
+    --brand:     #1B365D;
+    --border:    #e8e6dc;
+    --border-soft:#e5e3d8;
+    --tag-bg:    #E4ECF5;
+    --serif: "TsangerJinKai02", "Source Han Serif SC", "Noto Serif CJK SC", "Songti SC", "STSong", Georgia, serif;
+    --sans: var(--serif);
+  }
+
+  html, body { background: var(--parchment); }
+  @media screen {
+    body { max-width: 210mm; margin: 0 auto; padding: 14mm 17mm; }
+  }
+
+  body {
+    color: var(--near-black);
+    font-family: var(--serif);
+    font-size: 9.5pt;
+    line-height: 1.42;
+    letter-spacing: 0.3pt;
+  }
+
+  .header {
+    border-left: 2.5pt solid var(--brand);
+    border-radius: 1.5pt;
+    padding-left: 8pt;
+    margin-bottom: 12pt;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16pt;
+  }
+  .title-block { flex: 1; }
+  .eyebrow {
+    font-size: 8.5pt; color: var(--brand);
+    letter-spacing: 1pt; text-transform: uppercase;
+    margin-bottom: 3pt;
+  }
+  h1 {
+    font-family: var(--serif);
+    font-size: 22pt; font-weight: 500;
+    color: var(--near-black);
+    line-height: 1.15;
+    margin-bottom: 4pt;
+  }
+  .subtitle { font-size: 10pt; color: var(--olive); line-height: 1.4; }
+  .meta {
+    font-size: 8.5pt; color: var(--stone);
+    text-align: right; line-height: 1.4; white-space: nowrap;
+  }
+
+  .metrics {
+    display: flex; gap: 12pt;
+    margin-bottom: 14pt;
+    padding: 3pt 0 5pt 0;
+    border-bottom: 0.3pt dotted var(--border);
+  }
+  .metric {
+    flex: 1; background: transparent; padding: 0;
+    display: flex; align-items: baseline; gap: 4pt;
+    break-inside: avoid;
+  }
+  .metric-value {
+    font-family: var(--serif);
+    font-size: 18pt; font-weight: 500;
+    color: var(--brand); line-height: 1;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap; letter-spacing: -0.2pt;
+  }
+  .metric-label { font-size: 8.5pt; color: var(--olive); line-height: 1.3; }
+
+  h2 {
+    font-family: var(--serif);
+    font-size: 14pt; font-weight: 500;
+    color: var(--near-black);
+    margin-bottom: 5pt;
+  }
+
+  .hl { color: var(--brand); font-weight: 500; }
+
+  .tag {
+    display: inline-block;
+    background: var(--tag-bg);
+    color: var(--brand);
+    font-size: 8.5pt; font-weight: 500;
+    padding: 1pt 5pt; border-radius: 3pt;
+    letter-spacing: 0.3pt; margin-right: 3pt;
+  }
+
+  .tag-green {
+    background: #e8f5e9; color: #2d6a4f;
+  }
+
+  table, .kami-table {
+    width: 100%; border-collapse: collapse;
+    font-size: 8.5pt; margin: 6pt 0; break-inside: avoid;
+  }
+  table th, .kami-table th {
+    text-align: left; font-weight: 500; color: var(--dark-warm);
+    padding: 3pt 5pt; border-bottom: 1pt solid var(--border);
+    background: transparent;
+  }
+  table td, .kami-table td {
+    padding: 3pt 5pt; border-bottom: 0.3pt solid var(--border-soft);
+    vertical-align: top; line-height: 1.4;
+  }
+  table.striped tbody tr:nth-child(even) td { background: var(--ivory); }
+
+  .callout {
+    background: transparent;
+    border-left: 1.8pt solid var(--brand);
+    padding: 3pt 0 3pt 12pt;
+    margin: 8pt 0;
+    font-size: 9.5pt; line-height: 1.5;
+    color: var(--olive);
+    break-inside: avoid;
+  }
+
+  .footer {
+    margin-top: 14pt;
+    padding-top: 5pt;
+    border-top: 0.3pt dotted var(--border);
+    font-size: 8.5pt; color: var(--stone);
+    display: flex; justify-content: space-between;
+    letter-spacing: 0.3pt;
+  }
+
+  code {
+    font-family: "JetBrains Mono", "SF Mono", Consolas, "TsangerJinKai02", monospace;
+    font-size: 8.5pt; background: var(--ivory);
+    padding: 1pt 3pt; border-radius: 2pt;
+    color: var(--dark-warm);
+  }
+
+  .arrow { color: var(--stone); font-size: 8pt; }
+
+  .day-row td:first-child {
+    font-weight: 500; color: var(--brand); white-space: nowrap;
+    width: 65pt;
+  }
+
+  .file-ref {
+    font-size: 7.5pt; color: var(--stone);
+    display: block; margin-top: 1pt;
+  }
+
+  .owner-tag {
+    display: inline-block;
+    font-size: 7.5pt; padding: 0pt 4pt;
+    border-radius: 3pt; margin-right: 3pt;
+    font-weight: 500;
+  }
+  .owner-b { background: #EEF2F7; color: var(--brand); }
+  .owner-f { background: #f0f0ee; color: var(--olive); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="title-block">
+    <div class="eyebrow">一周冲刺计划 · 7-Day Sprint</div>
+    <h1>ADS-B 仿真系统<br>一周打通全链路</h1>
+    <div class="subtitle">参考 RID 项目架构，模拟器 → 后端 API → 前端可视化，7 天从解码到可演示</div>
+  </div>
+  <div class="meta">
+    <strong>熊康（后端）· 赵士睿（前端）</strong><br>
+    2026.07.28 — 08.03<br>
+    里程碑：前后端联通演示
+  </div>
+</div>
+
+<div class="metrics">
+  <div class="metric">
+    <div class="metric-value">7</div>
+    <div class="metric-label">天冲刺周期</div>
+  </div>
+  <div class="metric">
+    <div class="metric-value">3</div>
+    <div class="metric-label">条开发主线</div>
+  </div>
+  <div class="metric">
+    <div class="metric-value">1</div>
+    <div class="metric-label">个可演示原型</div>
+  </div>
+  <div class="metric">
+    <div class="metric-value">RID</div>
+    <div class="metric-label">架构参考项目</div>
+  </div>
+</div>
+
+<!-- ═══════════ 核心理念：RID 项目教会我们什么 ═══════════ -->
+<h2>RID 项目的三条核心启示</h2>
+<table>
+  <thead>
+    <tr><th style="width:28%;">RID 做了什么</th><th style="width:32%;">它怎么做的</th><th style="width:40%;">我们直接复用</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>数据模拟</strong> <span class="file-ref">wifi.py</span></td>
+      <td><code>create_packet()</code> 拼二进制包，<code>update_position()</code> Haversine 算轨迹</td>
+      <td>SimulationService 随机生成飞机 → 每条报文微调经纬度模拟飞行</td>
+    </tr>
+    <tr>
+      <td><strong>实时监控</strong> <span class="file-ref">app.py + MapView.vue</span></td>
+      <td>后端 1 秒写一次 DB，前端 1 秒 GET 一次刷新 Marker</td>
+      <td>AircraftController 定时写位置 + 前端 3 秒轮询 GET /api/aircraft/positions</td>
+    </tr>
+    <tr>
+      <td><strong>安全检测</strong> <span class="file-ref">collision_detection.py</span></td>
+      <td>detect_collision() 两两算二次方程求碰撞时间，分 high/medium 等级</td>
+      <td>SecurityCheckService 算位置跳变/高度突变/速度超限，分 红色/橙色/黄色</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="callout">
+  <strong>一句话心法：</strong>RID 项目的本质是「产生数据 → 存进数据库 → API 暴露 → 前端轮询展示」。我们的 ADS-B 系统完全同构——把「WiFi 嗅探」换成「ADS-B 报文模拟」，把「无人机」换成「飞机」，剩下全部复用。
+</div>
+
+<!-- ═══════════ 七天任务表 ═══════════ -->
+<h2>七天逐日任务</h2>
+<table class="striped">
+  <thead>
+    <tr><th style="width:8%;">天数</th><th style="width:10%;">日期</th><th style="width:12%;">负责人</th><th style="width:42%;">做什么</th><th style="width:28%;">产出物 / 验证方式</th></tr>
+  </thead>
+  <tbody>
+    <tr class="day-row">
+      <td>Day 1</td>
+      <td>7/28 周一</td>
+      <td><span class="owner-tag owner-b">熊康</span></td>
+      <td>
+        <strong>SimulationService — 飞机模拟器</strong><br>
+        · 参考 RID <code>wifi.py</code> 的 <code>spoof_multiple_drones()</code> 思路<br>
+        · 随机生成 N 架飞机（ICAO + 初始位置/高度/速度）<br>
+        · @Scheduled 定时任务，每秒更新所有飞机位置<br>
+        · Haversine 公式计算位移（复用 RID 的 update_position 逻辑）<br>
+        · 生成对应 ADS-B 报文存入 adsb_message 表
+      </td>
+      <td>
+        <code>POST /api/simulation/start</code><br>
+        <code>POST /api/simulation/stop</code><br>
+        MySQL 中持续产生新报文
+      </td>
+    </tr>
+    <tr class="day-row">
+      <td>Day 2</td>
+      <td>7/29 周二</td>
+      <td><span class="owner-tag owner-b">熊康</span></td>
+      <td>
+        <strong>数据查询 API</strong><br>
+        · 参考 RID <code>app.py</code> 的 <code>/api/db/drones/current</code><br>
+        · 实现飞机列表/详情/位置/轨迹 API<br>
+        · 测试：启动模拟器 → 浏览器调 API 看到飞机数据
+      </td>
+      <td>
+        <code>GET /api/aircraft</code><br>
+        <code>GET /api/aircraft/{icao}</code><br>
+        <code>GET /api/aircraft/positions</code><br>
+        Postman 验证返回 JSON 数组
+      </td>
+    </tr>
+    <tr class="day-row">
+      <td>Day 3</td>
+      <td>7/30 周三</td>
+      <td><span class="owner-tag owner-f">赵士睿</span></td>
+      <td>
+        <strong>前端项目初始化 + 地图页</strong><br>
+        · 参考 RID <code>MapView.vue</code>（Leaflet/高德 + Marker + 轮询）<br>
+        · Vue 3 + Element Plus 脚手架搭建<br>
+        · 集成地图组件，3 秒轮询飞机位置<br>
+        · 飞机图标 + 状态颜色（正常蓝 / 异常红）
+      </td>
+      <td>
+        浏览器中地图上看到飞机<br>
+        图标随模拟数据移动<br>
+        <span class="file-ref">参考：RID/frontend/src/components/MapView.vue</span>
+      </td>
+    </tr>
+    <tr class="day-row">
+      <td>Day 4</td>
+      <td>7/31 周四</td>
+      <td><span class="owner-tag owner-f">赵士睿</span></td>
+      <td>
+        <strong>飞机列表页 + 报文解析页</strong><br>
+        · 参考 RID <code>DroneList.vue</code>（Element Plus 表格 + 实时刷新）<br>
+        · 搜索/筛选/点击行弹详情卡片<br>
+        · 报文解析页：输入 hex → 调 <code>/api/adsb/parse</code> → 展示结果
+      </td>
+      <td>
+        列表页 + 解析页完整可用<br>
+        <span class="file-ref">参考：RID/frontend/src/components/DroneList.vue</span>
+      </td>
+    </tr>
+    <tr class="day-row">
+      <td>Day 5</td>
+      <td>8/1 周五</td>
+      <td><span class="owner-tag owner-b">熊康</span></td>
+      <td>
+        <strong>SecurityCheckService — 安全检测</strong><br>
+        · 参考 RID <code>collision_detection.py</code> 的检测 + 分级模式<br>
+        · 位置跳变检测（30s 内 >100km）<br>
+        · 高度突变检测（30s 内 >5000ft）<br>
+        · 速度超限检测（>650kt）<br>
+        · 检测到异常 → 写入 security_alert 表 + 更新 aircraft.status
+      </td>
+      <td>
+        模拟器注入异常数据 →<br>
+        MySQL 中出现告警记录<br>
+        <code>GET /api/alerts</code> 返回结果
+      </td>
+    </tr>
+    <tr class="day-row">
+      <td>Day 6</td>
+      <td>8/2 周六</td>
+      <td><span class="owner-tag owner-f">赵士睿</span></td>
+      <td>
+        <strong>告警页面 + 仿真控制面板</strong><br>
+        · 告警列表（时间/ICAO/类型/等级）+ 统计卡片<br>
+        · 仿真控制面板（启停按钮 + 飞机数量滑块 + 报文频率滑块）<br>
+        · 参考 RID 的 collision-panel UI 模式
+      </td>
+      <td>
+        前端控制仿真启停<br>
+        告警页看到红色/橙色/黄色条目
+      </td>
+    </tr>
+    <tr class="day-row">
+      <td>Day 7</td>
+      <td>8/3 周日</td>
+      <td><span class="owner-tag owner-b">熊康</span> <span class="owner-tag owner-f">赵士睿</span></td>
+      <td>
+        <strong>全链路联调 + 演示准备</strong><br>
+        · 模拟器启动 20 架 → 地图看到飞机在动<br>
+        · 手动解析一条报文 → 看到所有字段<br>
+        · 开启攻击模拟 → 告警页出现红色警报<br>
+        · 录一段 2 分钟演示视频（或截图文档）
+      </td>
+      <td>
+        🎯 <strong>可演示系统原型</strong><br>
+        完整流程无阻断 Bug<br>
+        README 更新
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ═══════════ 前后端开发节奏对照 ═══════════ -->
+<h2>前后端并行节奏</h2>
+<table>
+  <thead>
+    <tr><th style="width:8%;"></th><th style="width:23%;">周一 7/28</th><th style="width:23%;">周二 7/29</th><th style="width:23%;">周三 7/30</th><th style="width:23%;">周四 7/31</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="color:var(--brand);font-weight:500;">后端</td>
+      <td>SimulationService<br>报文模拟器</td>
+      <td>数据查询 API<br>5个接口</td>
+      <td>调通 CORS，配合<br>前端联调测试</td>
+      <td>SecurityCheckService<br>5 条检测规则</td>
+    </tr>
+    <tr>
+      <td style="color:var(--olive);font-weight:500;">前端</td>
+      <td>Vue 3 脚手架<br>Element Plus 安装</td>
+      <td>路由 + 布局框架<br>6 模块导航</td>
+      <td>地图页 MapView<br>飞机 Marker + 轮询</td>
+      <td>列表页 + 解析页<br>搜索/筛选/详情</td>
+    </tr>
+  </tbody>
+</table>
+
+<table>
+  <thead>
+    <tr><th style="width:8%;"></th><th style="width:23%;">周五 8/1</th><th style="width:23%;">周六 8/2</th><th style="width:23%;">周日 8/3</th><th style="width:23%;">交付 🎯</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="color:var(--brand);font-weight:500;">后端</td>
+      <td>攻击模拟逻辑<br>告警统计 API</td>
+      <td>导出 CSV API<br>Bug 修复</td>
+      <td>全链路联调<br>演示数据准备</td>
+      <td rowspan="2" style="vertical-align:middle; text-align:center;">
+        <span class="tag tag-green">可演示</span><br>
+        <span style="font-size:8pt;color:var(--stone);">模拟 20 架飞机<br>地图实时监控<br>异常自动告警</span>
+      </td>
+    </tr>
+    <tr>
+      <td style="color:var(--olive);font-weight:500;">前端</td>
+      <td>告警页面<br>统计卡片 + 列表</td>
+      <td>仿真控制面板<br>启停/滑块/开关</td>
+      <td>首页美观调整<br>演示准备</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ═══════════ 第一天就该做的事 ═══════════ -->
+<h2>今天（Day 1 · 7/28）立刻动手</h2>
+
+<table>
+  <thead>
+    <tr><th style="width:5%;">#</th><th style="width:13%;">谁</th><th style="width:82%;">做什么</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td><span class="owner-tag owner-b">熊康</span></td>
+      <td>打开 <code>SimulationService.java</code>，写一个 <code>generateRandomAircraft()</code> 方法：随机 ICAO、中国空域经纬度、合理高度速度，插入 <code>aircraft</code> 表</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td><span class="owner-tag owner-b">熊康</span></td>
+      <td>加 <code>@Scheduled(fixedRate = 1000)</code> 定时任务：每秒取出所有飞机，用 Haversine 微调经纬度，生成一条 <code>adsb_message</code> 报文写入数据库</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td><span class="owner-tag owner-f">赵士睿</span></td>
+      <td>执行 <code>npm create vue@latest adsb-frontend</code>，装 Element Plus + Leaflet + Axios + ECharts。参考 RID 的 <code>MapView.vue</code> 先写一个空地图</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td><span class="owner-tag owner-f">赵士睿</span></td>
+      <td>配置 <code>src/router/index.js</code> 6 个路由 + 左侧导航菜单。参考 RID <code>DroneList.vue</code> 写飞机列表占位组件</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="callout">
+  <strong>RID 项目教会我们一件事：</strong>不要一开始就追求完美。RID 的 MapView 就是用 <code>setInterval</code> 每秒调一次 API，没有 WebSocket、没有状态管理库，照样能跑。我们的原则是——<strong>先跑通，再优化。第一天结束就应该能在数据库里看到模拟报文，前端能看到一个地图。</strong>
+</div>
+
+<div class="footer">
+  <span>内部 · 南京航空航天大学 · 参考 RID 项目架构</span>
+  <span>2026.07.28 — 08.03 · 一周冲刺</span>
+</div>
+
+</body>
+</html>
