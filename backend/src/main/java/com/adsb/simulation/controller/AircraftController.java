@@ -4,6 +4,7 @@ import com.adsb.simulation.model.Aircraft;
 import com.adsb.simulation.model.AdsbMessage;
 import com.adsb.simulation.model.SecurityAlert;
 import com.adsb.simulation.repository.*;
+import com.adsb.simulation.service.SecurityCheckService;
 import com.adsb.simulation.service.SimulationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -19,6 +20,7 @@ public class AircraftController {
     private final AdsbMessageRepository messageRepo;
     private final SecurityAlertRepository alertRepo;
     private final SimulationService simulationService;
+    private final SecurityCheckService securityCheckService;
 
     // ====== 飞行器 ======
 
@@ -94,12 +96,38 @@ public class AircraftController {
         return Map.of("success", true, "aircraftCount", aircraftRepo.count());
     }
 
+    /** 攻击模拟：注入异常数据触发安全告警 */
+    @PostMapping("/simulation/attack")
+    public Map<String, Object> triggerAttack(@RequestBody(required = false) Map<String, Object> body) {
+        String attackType = body != null && body.containsKey("attackType")
+                ? (String) body.get("attackType") : null;
+        return simulationService.triggerAttack(attackType);
+    }
+
     // ====== 告警 ======
 
     @GetMapping("/alerts")
     public List<SecurityAlert> listAlerts(@RequestParam(required = false) String level) {
         if (level != null) return alertRepo.findByAlertLevel(level);
         return alertRepo.findByIsResolvedFalseOrderByCreatedAtDesc();
+    }
+
+    @GetMapping("/alerts/stats")
+    public Map<String, Object> alertStats() {
+        return securityCheckService.getAlertStats();
+    }
+
+    @PutMapping("/alerts/{id}/resolve")
+    public Map<String, Object> resolveAlert(@PathVariable Long id) {
+        SecurityAlert alert = alertRepo.findById(id).orElse(null);
+        if (alert != null) {
+            alert.setIsResolved(true);
+            alertRepo.save(alert);
+            // 清除去重缓存，允许同类告警再次触发
+            securityCheckService.clearDedupCache(alert.getIcao());
+            return Map.of("success", true, "id", id);
+        }
+        return Map.of("success", false, "message", "告警不存在");
     }
 
     // ====== 统计 ======

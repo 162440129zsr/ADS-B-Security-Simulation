@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
 /**
@@ -26,6 +27,7 @@ public class SimulationService {
     private final AdsbMessageRepository messageRepo;
     private final SimulationConfigRepository configRepo;
     private final AdsbDecoderService decoderService;
+    private final SecurityCheckService securityCheckService;
 
     private static final Random RNG = new Random();
 
@@ -181,10 +183,115 @@ public class SimulationService {
                     .receivedAt(now)
                     .build();
             messageRepo.save(msg);
+
+            // Day 10：每生成一条报文自动触发安全检查
+            securityCheckService.check(msg, ac);
         }
     }
 
     // ====== 工具方法 ======
+
+    /**
+     * 攻击模拟：随机选一架飞机注入异常数据，触发安全告警
+     * @param attackType 攻击类型: position / altitude / speed / crc / replay
+     */
+    public Map<String, Object> triggerAttack(String attackType) {
+        List<Aircraft> all = aircraftRepo.findAll();
+        if (all.isEmpty()) return Map.of("success", false, "message", "没有飞机可攻击");
+
+        Aircraft victim = all.get(RNG.nextInt(all.size()));
+        String type = attackType != null ? attackType
+                : new String[]{"position", "altitude", "speed", "crc"}[RNG.nextInt(4)];
+
+        AdsbMessage msg = null;
+        switch (type) {
+            case "position" -> {
+                // GPS 位置欺骗：瞬间偏移 500km
+                double oldLat = victim.getLatitude(), oldLon = victim.getLongitude();
+                victim.setLatitude(oldLat + (RNG.nextDouble() - 0.5) * 5);  // ~250-500km
+                victim.setLongitude(oldLon + (RNG.nextDouble() - 0.5) * 5);
+                victim.setStatus("异常");
+                aircraftRepo.save(victim);
+                msg = buildMessage(victim, false);
+                log.warn("🚨 攻击注入: 飞机 {} 位置被篡改 ({},{}) → ({},{})",
+                        victim.getIcao(), String.format("%.2f", oldLat), String.format("%.2f", oldLon),
+                        String.format("%.2f", victim.getLatitude()), String.format("%.2f", victim.getLongitude()));
+            }
+            case "altitude" -> {
+                // 高度篡改：瞬间变化 8000ft
+                double oldAlt = victim.getAltitude();
+                victim.setAltitude(oldAlt + (RNG.nextBoolean() ? 8000 : -8000));
+                victim.setAltitude(Math.max(0, Math.min(60000, victim.getAltitude())));
+                victim.setStatus("异常");
+                aircraftRepo.save(victim);
+                msg = buildMessage(victim, true);
+                log.warn("🚨 攻击注入: 飞机 {} 高度被篡改 {} → {} ft",
+                        victim.getIcao(), String.format("%.0f", oldAlt), String.format("%.0f", victim.getAltitude()));
+            }
+            case "speed" -> {
+                // 速度超限：设置到 700kt
+                victim.setSpeed(700 + RNG.nextDouble() * 100);
+                victim.setStatus("异常");
+                aircraftRepo.save(victim);
+                msg = buildMessage(victim, true);
+                log.warn("🚨 攻击注入: 飞机 {} 速度被篡改为 {} kt", victim.getIcao(), String.format("%.0f", victim.getSpeed()));
+            }
+            case "crc" -> {
+                // CRC 校验失败
+                msg = buildMessage(victim, false);
+                String hex = msg.getRawHex();
+                // 修改最后 6 位 hex (PI/CRC) 使 CRC 校验失败
+                msg.setRawHex(hex.substring(0, 22) + "FFFFF" + hex.charAt(27));
+                msg.setCrcValid(false);
+                log.warn("🚨 攻击注入: 飞机 {} CRC 被篡改", victim.getIcao());
+            }
+            case "replay" -> {
+                // 重放攻击：发送一条和上一条完全相同的报文
+                List<AdsbMessage> recent = messageRepo.findByIcaoOrderByReceivedAtDesc(victim.getIcao());
+                if (!recent.isEmpty()) {
+                    AdsbMessage dup = recent.get(0);
+                    msg = buildMessage(victim, true);
+                    msg.setRawHex(dup.getRawHex());  // 复用相同的 hex
+                    log.warn("🚨 攻击注入: 飞机 {} 重放攻击", victim.getIcao());
+                } else {
+                    msg = buildMessage(victim, true);
+                }
+            }
+            default -> {
+                return Map.of("success", false, "message", "未知攻击类型: " + type);
+            }
+        }
+
+        if (msg != null) {
+            msg.setReceivedAt(System.currentTimeMillis());
+            messageRepo.save(msg);
+            securityCheckService.check(msg, victim);
+        }
+
+        return Map.of(
+                "success", true,
+                "attackType", type,
+                "victimIcao", victim.getIcao(),
+                "victimCallsign", victim.getCallsign()
+        );
+    }
+
+    private AdsbMessage buildMessage(Aircraft ac, boolean crcValid) {
+        return AdsbMessage.builder()
+                .icao(ac.getIcao())
+                .rawHex(generatePositionHex(ac))
+                .df(17).tc(11)
+                .messageType("空中位置(气压高度)")
+                .altitude(ac.getAltitude())
+                .latitude(ac.getLatitude())
+                .longitude(ac.getLongitude())
+                .speed(ac.getSpeed())
+                .heading(ac.getHeading())
+                .crcValid(crcValid)
+                .isEncrypted(false)
+                .receivedAt(System.currentTimeMillis())
+                .build();
+    }
 
     private double[] updatePosition(double lat, double lon, double speedKt, double heading, double dtSec) {
         double speedMs = speedKt * 0.514444;

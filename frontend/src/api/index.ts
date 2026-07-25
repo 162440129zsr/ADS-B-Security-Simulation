@@ -16,3 +16,7 @@ export const parseMessage = (hexMsg: string) =>
   api.post('/adsb/parse', { hexMsg }).then(r => r.data)
 export const fetchMessages = (icao: string) =>
   api.get(`/aircraft/${icao}/messages`).then(r => r.data)
+export const triggerAttack = (attackType?: string) =>
+  api.post('/simulation/attack', attackType ? { attackType } : {}).then(r => r.data)
+export const fetchAlertStats = () => api.get('/alerts/stats').then(r => r.data)
+export const resolveAlert = (id: number) => api.put(`/alerts/${id}/resolve`).then(r => r.data)

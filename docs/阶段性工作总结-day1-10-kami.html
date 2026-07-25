@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>ADS-B 仿真系统 · 阶段工作总结（Day 1-10）</title>
+<meta name="author" content="熊康">
+<meta name="generator" content="Kami">
+<style>
+  @font-face {
+    font-family: "TsangerJinKai02";
+    src: url("https://cdn.jsdelivr.net/gh/tw93/Kami@main/assets/fonts/TsangerJinKai02-W04.ttf") format("truetype");
+    font-weight: 400; font-style: normal;
+  }
+  @font-face {
+    font-family: "TsangerJinKai02";
+    src: url("https://cdn.jsdelivr.net/gh/tw93/Kami@main/assets/fonts/TsangerJinKai02-W05.ttf") format("truetype");
+    font-weight: 500; font-style: normal;
+  }
+
+  @page { size: A4; margin: 14mm 17mm; background: #f5f4ed; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --parchment: #f5f4ed;
+    --ivory:     #faf9f5;
+    --near-black:#141413;
+    --dark-warm: #3d3d3a;
+    --olive:     #504e49;
+    --stone:     #6b6a64;
+    --brand:     #1B365D;
+    --border:    #e8e6dc;
+    --border-soft:#e5e3d8;
+    --tag-bg:    #E4ECF5;
+    --serif: "TsangerJinKai02", "Source Han Serif SC", "Noto Serif CJK SC", Georgia, serif;
+    --sans: var(--serif);
+  }
+
+  html, body { background: var(--parchment); }
+  @media screen {
+    body { max-width: 210mm; margin: 0 auto; padding: 14mm 17mm; }
+  }
+
+  body {
+    color: var(--near-black);
+    font-family: var(--serif);
+    font-size: 9pt;
+    line-height: 1.55;
+    letter-spacing: 0.3pt;
+  }
+
+  .header {
+    border-left: 2.5pt solid var(--brand);
+    border-radius: 1.5pt;
+    padding-left: 8pt;
+    margin-bottom: 10pt;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+  .eyebrow {
+    font-size: 8pt; color: var(--brand);
+    letter-spacing: 1pt; text-transform: uppercase; margin-bottom: 2pt;
+  }
+  h1 {
+    font-family: var(--serif);
+    font-size: 20pt; font-weight: 500; color: var(--near-black);
+    line-height: 1.15; margin-bottom: 3pt;
+  }
+  .subtitle { font-size: 9pt; color: var(--olive); }
+  .meta { font-size: 8pt; color: var(--stone); text-align: right; line-height: 1.4; }
+
+  .metrics {
+    display: flex; gap: 10pt;
+    margin-bottom: 12pt;
+    padding: 2pt 0 4pt 0;
+    border-bottom: 0.3pt dotted var(--border);
+  }
+  .metric {
+    flex: 1; background: transparent;
+    display: flex; align-items: baseline; gap: 3pt;
+  }
+  .metric-value {
+    font-family: var(--serif);
+    font-size: 16pt; font-weight: 500; color: var(--brand);
+    line-height: 1; font-variant-numeric: tabular-nums;
+  }
+  .metric-label { font-size: 8pt; color: var(--olive); }
+
+  h2 {
+    font-family: var(--serif);
+    font-size: 13pt; font-weight: 500; color: var(--near-black);
+    margin-bottom: 4pt; margin-top: 10pt;
+  }
+  h3 {
+    font-family: var(--serif);
+    font-size: 10.5pt; font-weight: 500; color: var(--dark-warm);
+    margin-bottom: 3pt; margin-top: 6pt;
+  }
+
+  .hl { color: var(--brand); font-weight: 500; }
+  .tag {
+    display: inline-block;
+    background: var(--tag-bg);
+    color: var(--brand);
+    font-size: 8pt; font-weight: 500;
+    padding: 1pt 4pt; border-radius: 3pt;
+    letter-spacing: 0.3pt;
+  }
+  .tag-green { background: #e8f5e9; color: #2d6a4f; }
+  .tag-red { background: #fce4ec; color: #c62828; }
+  .tag-orange { background: #fff3e0; color: #e65100; }
+
+  table {
+    width: 100%; border-collapse: collapse;
+    font-size: 8pt; margin: 5pt 0; break-inside: avoid;
+  }
+  table th {
+    text-align: left; font-weight: 500; color: var(--dark-warm);
+    padding: 3pt 4pt; border-bottom: 1pt solid var(--border);
+    background: transparent;
+  }
+  table td {
+    padding: 3pt 4pt; border-bottom: 0.3pt solid var(--border-soft);
+    vertical-align: top; line-height: 1.4;
+  }
+
+  .callout {
+    background: transparent;
+    border-left: 1.8pt solid var(--brand);
+    padding: 2pt 0 2pt 10pt;
+    margin: 6pt 0;
+    font-size: 9pt; line-height: 1.5;
+    color: var(--olive);
+    break-inside: avoid;
+  }
+
+  .footer {
+    margin-top: 14pt; padding-top: 4pt;
+    border-top: 0.3pt dotted var(--border);
+    font-size: 8pt; color: var(--stone);
+    display: flex; justify-content: space-between;
+    letter-spacing: 0.3pt;
+  }
+
+  code {
+    font-family: "JetBrains Mono", "SF Mono", Consolas, monospace;
+    font-size: 7.5pt; background: var(--ivory);
+    padding: 1pt 3pt; border-radius: 2pt;
+    color: var(--dark-warm);
+  }
+
+  pre {
+    background: var(--ivory);
+    font-size: 7.5pt;
+    padding: 8pt 10pt;
+    border-radius: 3pt;
+    margin: 5pt 0;
+    line-height: 1.5;
+    overflow-x: auto;
+    border: 0.3pt solid var(--border-soft);
+    color: var(--dark-warm);
+    font-family: "JetBrains Mono", "SF Mono", Consolas, monospace;
+  }
+
+  .file-tree {
+    font-size: 8pt; line-height: 1.6;
+    color: var(--olive);
+    margin: 4pt 0;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="title-block">
+    <div class="eyebrow">技术工作总结 · 2026.07.22 — 07.25</div>
+    <h1>ADS-B 安全可信仿真系统<br>阶段成果报告（Day 1–10）</h1>
+    <div class="subtitle">项目初始化 → ADS-B 协议解码 → 仿真引擎 → 地图可视化 → 安全检测攻击模拟</div>
+  </div>
+  <div class="meta">
+    <strong>熊康（后端）</strong><br>
+    2026 年 7 月 25 日<br>
+    南京航空航天大学
+  </div>
+</div>
+
+<div class="metrics">
+  <div class="metric">
+    <div class="metric-value">10</div>
+    <div class="metric-label">天任务完成</div>
+  </div>
+  <div class="metric">
+    <div class="metric-value">20</div>
+    <div class="metric-label">Java 类文件</div>
+  </div>
+  <div class="metric">
+    <div class="metric-value">6</div>
+    <div class="metric-label">前端页面</div>
+  </div>
+  <div class="metric">
+    <div class="metric-value">15</div>
+    <div class="metric-label">REST API 接口</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ 总览 ═══════════════════════ -->
+<h2>一、整体架构</h2>
+
+<p style="font-size:8.5pt;color:var(--olive);margin-bottom:6pt;">
+系统采用典型的前后端分离架构，后端 Spring Boot 3.3 + JPA，前端 Vue 3 + Element Plus + Leaflet。
+核心链路为：<strong>仿真引擎每秒更新飞机位置 → 按 ADS-B 协议生成报文 → 存入数据库 → 安全检测模块自动扫描 → REST API 暴露数据 → 前端轮询展示</strong>。
+</p>
+
+<pre>
+┌──────────────────────────────────────────────────────────┐
+│                    前端 (Vue 3 + Vite)                    │
+│  Dashboard │ AircraftList │ MessageParse │ Alerts │ Control │
+│            Leaflet 地图 &amp; ECharts 图表                   │
+└──────────────────────┬───────────────────────────────────┘
+                       │ Axios 3s 轮询
+                       ▼
+┌──────────────────────────────────────────────────────────┐
+│              后端 (Spring Boot 3.3 · Java 17)            │
+│  ┌─────────────┐  ┌──────────────┐  ┌─────────────────┐  │
+│  │ Simulation  │  │ AdsbDecoder  │  │  SecurityCheck  │  │
+│  │  Service    │─▶│   Service    │  │    Service      │  │
+│  │ (每秒 tick) │  │ (协议解码)   │  │  (5条检测规则)  │  │
+│  └─────────────┘  └──────────────┘  └─────────────────┘  │
+│                       │                                  │
+│              JPA / Hibernate                             │
+│                       ▼                                  │
+│             H2 内存库 (可切 MySQL)                        │
+└──────────────────────────────────────────────────────────┘
+</pre>
+
+<!-- ═══════════════════════ 数据生成 ═══════════════════════ -->
+<h2>二、仿真引擎 —— 数据是如何生成的</h2>
+
+<h3>2.1 飞机种子数据 <span class="tag tag-green">SimulationService.seedAircraft()</span></h3>
+<table>
+  <thead><tr><th style="width:22%;">字段</th><th style="width:40%;">生成方式</th><th style="width:38%;">示例值</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>ICAO</td>
+      <td>随机 6 位十六进制</td>
+      <td><code>A0E1FB</code>、<code>456D92</code></td>
+    </tr>
+    <tr>
+      <td>呼号</td>
+      <td>航司前缀 (CCA/CES/CSN 等) + 随机 3-4 位数字</td>
+      <td><code>CCA1823</code>、<code>CAL9016</code></td>
+    </tr>
+    <tr>
+      <td>纬度</td>
+      <td>中国空域: 北纬 20°–45° 均匀随机</td>
+      <td><code>32.0472</code>（武汉附近）</td>
+    </tr>
+    <tr>
+      <td>经度</td>
+      <td>中国空域: 东经 75°–130° 均匀随机</td>
+      <td><code>118.7837</code>（南京附近）</td>
+    </tr>
+    <tr>
+      <td>高度</td>
+      <td>5000–40000 ft 均匀随机</td>
+      <td><code>28700 ft</code>（FL287）</td>
+    </tr>
+    <tr>
+      <td>速度</td>
+      <td>200–550 kt 均匀随机</td>
+      <td><code>435 kt</code>（约 805 km/h）</td>
+    </tr>
+    <tr>
+      <td>航向</td>
+      <td>0°–360° 均匀随机</td>
+      <td><code>142.3°</code>（东南方向）</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>2.2 飞行位移计算 (Haversine 公式)</h3>
+<p style="font-size:8.5pt;color:var(--olive);margin-bottom:4pt;">
+每 tick 模拟 <strong>30 秒实际飞行</strong>（而非 1 秒），确保地图上飞机有肉眼可见的位移。
+</p>
+<pre>
+speedMs = speedKt × 0.514444       (节 → 米/秒)
+dist    = speedMs × 30             (30秒飞行距离)
+dLat    = dist × cos(headingRad) / EARTH_RADIUS
+dLon    = dist × sin(headingRad) / (EARTH_RADIUS × cos(latRad))
+newLat  = lat + toDegrees(dLat)    (边界: 20°–45°)
+newLon  = lon + toDegrees(dLon)    (边界: 75°–130°)
+</pre>
+<p style="font-size:8pt;color:var(--stone);">
+计算示例：一架位于 (32.0000, 118.0000) 的飞机，航向 90°、速度 450kt，
+每 tick 位移 ≈ 30 × 231.5 m/s = 6.94 km ≈ 0.063°（经度方向）。
+</p>
+
+<h3>2.3 ADS-B 报文生成 <span class="tag tag-green">generatePositionHex()</span></h3>
+<p style="font-size:8.5pt;color:var(--olive);margin-bottom:4pt;">
+按 DO-260B 标准组装 <strong>112-bit DF17 报文</strong>，格式为：
+</p>
+<pre>
+| DF(5) | CA(3) | ICAO(24) | ME(56)                      | PI(24)  |
+| 10001 | 000   | A0E1FB   | TC(5)+SS(2)+SAF(1)+ALT(12) | CRC占位 |
+|       |       |          | +T(1)+F(1)+CPR-LAT(17)      | 000000  |
+|       |       |          | +CPR-LON(17)                |         |
+ ───────┬────── ──────┬────── ────────────┬────────────── ───┬────
+   1 byte  (0x8D)      3 bytes            7 bytes         3 bytes
+</pre>
+<p style="font-size:8pt;color:var(--stone);">
+当前报文生成采用<strong>简化 CRC</strong>（PI 字段固定 000000），后续可接入真实 CRC-24 校验。高度采用 Q=1 编码（25ft 增量），CPR 采用简化的经纬度小数部分映射。
+</p>
+
+<!-- ═══════════════════════ 报文解析 ═══════════════════════ -->
+<h2>三、ADS-B 协议解码 —— 报文是怎么解析的</h2>
+
+<h3>3.1 解码流水线</h3>
+<table>
+  <thead><tr><th style="width:8%;">步骤</th><th style="width:22%;">服务</th><th style="width:70%;">处理内容</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td><code>CrcService</code></td>
+      <td>多项式 <code>0xFFFA0480</code> 模二除法，计算 24-bit CRC 余数。余数为 0 = 校验通过</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td><code>AdsbDecoderService</code></td>
+      <td>提取 DF（bits 1-5）、ICAO（bits 9-32）、TC（bits 33-37），按 TC 范围分发</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>分发处理</td>
+      <td>TC 1-4 → 飞机识别（charset map 解码呼号）；TC 9-18 → 空中位置；TC 19 → 速度；TC 31 → 版本</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td><code>CprDecoderService</code></td>
+      <td>奇帧+偶帧配对 → 全局解码经纬度；单帧可用参考位置做本地解码</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>3.2 支持的消息类型</h3>
+<table>
+  <thead><tr><th>TC 范围</th><th>类型</th><th>解码字段</th></tr></thead>
+  <tbody>
+    <tr><td>1–4</td><td>飞机识别</td><td>呼号（8 个 6-bit 字符 charset 解码）、飞机类别</td></tr>
+    <tr><td>5–8</td><td>地面位置</td><td>CPR 编码经纬度（表面坐标）</td></tr>
+    <tr><td>9–18</td><td>空中位置（气压高度）</td><td>Q-bit 高度解码（25ft 增量）、CPR 编码经纬度</td></tr>
+    <tr><td>19</td><td>空中速度</td><td>Subtype 1/2：E/W + N/S 向量合成地速+航迹角、垂直速率</td></tr>
+    <tr><td>20–22</td><td>空中位置（GNSS 高度）</td><td>GNSS 高度 + CPR 经纬度</td></tr>
+    <tr><td>31</td><td>运行状态</td><td>ADS-B 版本号（v0/v1/v2）</td></tr>
+  </tbody>
+</table>
+
+<h3>3.3 CPR 位置解码机制</h3>
+<p style="font-size:8.5pt;color:var(--olive);margin-bottom:4pt;">
+Compact Position Reporting (CPR) 是 ADS-B 的核心编码方案——将 17-bit 经纬度打包在报文中，用奇偶帧的时间差序列来恢复全局位置：
+</p>
+<pre>
+┌─ 偶帧 ─┐   ┌─ 奇帧 ─┐
+Lat: 17 bits   Lat: 17 bits    →  j = floor(59×Even/2¹⁷ − 60×Odd/2¹⁷ + 0.5)
+Lon: 17 bits   Lon: 17 bits    →  dLon = 360/NL(纬度), 全局解算
+</pre>
+<p style="font-size:8pt;color:var(--stone);">
+实现细节：<code>ConcurrentHashMap&lt;String, CprFrame&gt;</code> 缓存每架飞机的奇偶帧，
+<code>computeNL(lat)</code> 计算纬度带数量，<code>mod(a,b)</code> 处理取模运算，
+<code>normalizeLat/Lon</code> 处理经纬度归一化。
+</p>
+
+<!-- ═══════════════════════ 安全检测 ═══════════════════════ -->
+<h2>四、安全检测模块 —— 5 条检测规则</h2>
+
+<table>
+  <thead><tr><th style="width:4%;">#</th><th style="width:18%;">检测项</th><th style="width:8%;">等级</th><th style="width:30%;">触发条件</th><th style="width:40%;">检测逻辑</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>CRC 校验失败</td>
+      <td><span class="tag tag-red">红色</span></td>
+      <td>CRC 余数 ≠ 0</td>
+      <td>报文在传输过程中被篡改，CRC 完整性校验不通过</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>位置异常跳变</td>
+      <td><span class="tag tag-red">红色</span></td>
+      <td>30 秒内位移 &gt; 100 km</td>
+      <td>Haversine 公式计算前后两条报文间距离，超过阈值判定为 GPS 欺骗</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>高度异常变化</td>
+      <td><span class="tag tag-orange">橙色</span></td>
+      <td>30 秒内高度变化 &gt; 5000 ft</td>
+      <td>同一飞机相邻报文高度差超过阈值，判定为高度篡改</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>速度超限</td>
+      <td><span class="tag tag-orange">橙色</span></td>
+      <td>速度 &gt; 650 kt</td>
+      <td>超过民航飞机最大巡航速度，判定为数据异常</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>疑似重放攻击</td>
+      <td><span class="tag tag-red">红色</span></td>
+      <td>60 秒内相同 hex 报文重复出现</td>
+      <td>缓存近期报文 hash，相同 ICAO + 相同 hex 在窗口内重复 = 重放</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="callout">
+  <strong>去重机制：</strong>同一飞机的同类型告警仅保留一条未处理记录（<code>ConcurrentHashMap.newKeySet()</code> 追踪 icao:type 键）。
+  标记"已处理"后自动清除去重缓存，允许同类告警再次触发。避免每秒重复刷屏。
+</div>
+
+<!-- ═══════════════════════ 攻击模拟 ═══════════════════════ -->
+<h2>五、攻击模拟系统</h2>
+
+<table>
+  <thead><tr><th style="width:15%;">攻击类型</th><th style="width:20%;">API 参数</th><th style="width:65%;">攻击效果</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>📍 位置欺骗</td>
+      <td><code>position</code></td>
+      <td>随机选一架飞机，经纬度各偏移 ±2.5°（约 250–500 km），模拟 GPS 欺骗</td>
+    </tr>
+    <tr>
+      <td>📏 高度篡改</td>
+      <td><code>altitude</code></td>
+      <td>高度瞬间变化 ±8000 ft，模拟高度数据被恶意修改</td>
+    </tr>
+    <tr>
+      <td>⚡ 速度超限</td>
+      <td><code>speed</code></td>
+      <td>速度设为 700–800 kt，触发速度超限告警</td>
+    </tr>
+    <tr>
+      <td>🔐 CRC 篡改</td>
+      <td><code>crc</code></td>
+      <td>修改报文 PI 字段使 CRC 校验失败（crcValid = false）</td>
+    </tr>
+    <tr>
+      <td>🔄 重放攻击</td>
+      <td><code>replay</code></td>
+      <td>重复发送该飞机上一条相同 hex 报文，触发重放检测</td>
+    </tr>
+    <tr>
+      <td>🎲 随机攻击</td>
+      <td><em>不传参</em></td>
+      <td>从前 4 种类型中随机选一种，增加不可预测性</td>
+    </tr>
+  </tbody>
+</table>
+
+<p style="font-size:8pt;color:var(--stone);">
+攻击模拟 API：<code>POST /api/simulation/attack {"attackType": "position"}</code>。
+前端仿真控制页提供 6 个按钮，点击攻击后 → 后端注入异常 →
+安全检测模块自动触发告警 → 告警页面实时可查。
+</p>
+
+<!-- ═══════════════════════ 技术栈 ═══════════════════════ -->
+<h2>六、技术栈总览</h2>
+
+<table>
+  <thead><tr><th style="width:12%;">层次</th><th style="width:38%;">技术选型</th><th style="width:50%;">说明</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>前端框架</td>
+      <td>Vue 3.5 + TypeScript + Vite 8</td>
+      <td>Composition API，setup 语法糖</td>
+    </tr>
+    <tr>
+      <td>UI 组件库</td>
+      <td>Element Plus 2.11</td>
+      <td>表格、弹窗、按钮、标签、滑块等</td>
+    </tr>
+    <tr>
+      <td>地图</td>
+      <td>Leaflet 1.9 + OpenStreetMap</td>
+      <td>SVG 飞机图标（随航向旋转）、轨迹虚线、弹窗</td>
+    </tr>
+    <tr>
+      <td>图表</td>
+      <td>ECharts 6</td>
+      <td>饼图（正常/异常比例）</td>
+    </tr>
+    <tr>
+      <td>后端框架</td>
+      <td>Spring Boot 3.3 + Java 17</td>
+      <td>Maven 构建，@Scheduled 定时任务</td>
+    </tr>
+    <tr>
+      <td>数据库</td>
+      <td>H2（默认）/ MySQL 8.0（可选）</td>
+      <td>JPA/Hibernate ORM，ddl-auto: update 自动建表</td>
+    </tr>
+    <tr>
+      <td>协议实现</td>
+      <td>纯 Java 移植自 pyModeS</td>
+      <td>DF/TC/ICAO 提取、CRC-24、CPR 解码、高度/速度解码</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ═══════════════════════ 文件结构 ═══════════════════════ -->
+<h2>七、项目文件结构</h2>
+
+<div class="file-tree">
+<strong>backend/</strong> — Spring Boot 后端（20 个 Java 类）<br>
+├── <code>AdsbSimulationApplication.java</code> &nbsp; 启动类（含 @EnableScheduling）<br>
+├── <code>config/DataInitRunner.java</code> &nbsp; CommandLineRunner 启动时自动初始化<br>
+├── <code>model/</code><br>
+│&nbsp;&nbsp;&nbsp;├── <code>Aircraft.java</code> &nbsp; JPA 实体 —— 飞行器信息<br>
+│&nbsp;&nbsp;&nbsp;├── <code>AdsbMessage.java</code> &nbsp; JPA 实体 —— ADS-B 报文记录<br>
+│&nbsp;&nbsp;&nbsp;├── <code>SecurityAlert.java</code> &nbsp; JPA 实体 —— 安全告警<br>
+│&nbsp;&nbsp;&nbsp;├── <code>SimulationConfig.java</code> &nbsp; JPA 实体 —— 仿真配置<br>
+│&nbsp;&nbsp;&nbsp;└── <code>AdsbParseResult.java</code> &nbsp; DTO —— 解析结果<br>
+├── <code>repository/</code> &nbsp; 4 个 JPA Repository 接口<br>
+├── <code>service/</code><br>
+│&nbsp;&nbsp;&nbsp;├── <code>SimulationService.java</code> &nbsp; 🔑 仿真引擎（tick + 种子 + 攻击模拟）<br>
+│&nbsp;&nbsp;&nbsp;├── <code>AdsbDecoderService.java</code> &nbsp; 🔑 ADS-B 协议解码（7 种消息类型）<br>
+│&nbsp;&nbsp;&nbsp;├── <code>CprDecoderService.java</code> &nbsp; 🔑 CPR 全局位置解码<br>
+│&nbsp;&nbsp;&nbsp;├── <code>CrcService.java</code> &nbsp; CRC-24 校验（多项式 0xFFFA0480）<br>
+│&nbsp;&nbsp;&nbsp;└── <code>SecurityCheckService.java</code> &nbsp; 🔑 安全检测（5 条规则 + 去重）<br>
+├── <code>controller/</code><br>
+│&nbsp;&nbsp;&nbsp;├── <code>AircraftController.java</code> &nbsp; 12 个 REST API<br>
+│&nbsp;&nbsp;&nbsp;└── <code>AdsbController.java</code> &nbsp; 3 个报文解析 API<br>
+└── <code>resources/</code><br>
+&nbsp;&nbsp;&nbsp;&nbsp;├── <code>application.yml</code> &nbsp; H2 数据源 + JPA 配置<br>
+&nbsp;&nbsp;&nbsp;&nbsp;└── <code>application-mysql.yml</code> &nbsp; MySQL 配置（gitignored）<br>
+<br>
+<strong>frontend/</strong> — Vue 3 前端（6 个页面）<br>
+├── <code>src/views/DashboardView.vue</code> &nbsp; 🔑 地图仪表盘（SVG 飞机图标 + 轨迹）<br>
+├── <code>src/views/AircraftListView.vue</code> &nbsp; 飞行器列表（搜索/筛选/详情/地图定位）<br>
+├── <code>src/views/MessageParseView.vue</code> &nbsp; 报文解析<br>
+├── <code>src/views/SecurityAlertView.vue</code> &nbsp; 安全告警<br>
+├── <code>src/views/SimControlView.vue</code> &nbsp; 🔑 仿真控制 + 攻击模拟按钮<br>
+└── <code>src/views/DataView.vue</code> &nbsp; ECharts 数据可视化<br>
+</div>
+
+<!-- ═══════════════════════ REST API ═══════════════════════ -->
+<h2>八、REST API 清单</h2>
+
+<table>
+  <thead><tr><th>方法</th><th>路径</th><th>用途</th></tr></thead>
+  <tbody>
+    <tr><td>GET</td><td><code>/api/aircraft</code></td><td>飞行器列表（可选 ?status= 过滤）</td></tr>
+    <tr><td>GET</td><td><code>/api/aircraft/{icao}</code></td><td>单架飞行器详情</td></tr>
+    <tr><td>GET</td><td><code>/api/aircraft/positions</code></td><td>所有飞行器实时位置（地图用）</td></tr>
+    <tr><td>GET</td><td><code>/api/aircraft/{icao}/messages</code></td><td>某飞机近期报文（?limit=20）</td></tr>
+    <tr><td>POST</td><td><code>/api/simulation/start</code></td><td>启动仿真（aircraftCount, intervalMs）</td></tr>
+    <tr><td>POST</td><td><code>/api/simulation/stop</code></td><td>停止仿真</td></tr>
+    <tr><td>GET</td><td><code>/api/simulation/status</code></td><td>仿真运行状态</td></tr>
+    <tr><td>POST</td><td><code>/api/simulation/config</code></td><td>运行时调整飞机数量</td></tr>
+    <tr><td>POST</td><td><code>/api/simulation/attack</code></td><td>🆕 攻击模拟（position/altitude/speed/crc/replay）</td></tr>
+    <tr><td>POST</td><td><code>/api/adsb/parse</code></td><td>解析单条报文</td></tr>
+    <tr><td>POST</td><td><code>/api/adsb/parse/batch</code></td><td>批量解析报文</td></tr>
+    <tr><td>POST</td><td><code>/api/adsb/parse/with-ref</code></td><td>带参考位置解析</td></tr>
+    <tr><td>GET</td><td><code>/api/alerts</code></td><td>安全告警列表（可选 ?level=）</td></tr>
+    <tr><td>GET</td><td><code>/api/alerts/stats</code></td><td>🆕 告警统计（按级别）</td></tr>
+    <tr><td>PUT</td><td><code>/api/alerts/{id}/resolve</code></td><td>🆕 标记告警已处理</td></tr>
+    <tr><td>GET</td><td><code>/api/stats</code></td><td>系统总览统计</td></tr>
+  </tbody>
+</table>
+
+<!-- ═══════════════════════ 后续改进 ═══════════════════════ -->
+<h2>九、后续待改进项</h2>
+
+<table>
+  <thead><tr><th style="width:5%;">#</th><th style="width:30%;">改进项</th><th style="width:10%;">优先级</th><th style="width:55%;">具体内容</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td><strong>真实 CRC-24 生成</strong></td>
+      <td><span class="tag tag-red">高</span></td>
+      <td>当前 generatePositionHex() 中 PI 字段固定 000000，需接入 CrcService 生成真实校验码。修改后攻击模拟的 CRC 篡改才能正确被检测</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td><strong>MySQL 持久化</strong></td>
+      <td><span class="tag tag-red">高</span></td>
+      <td>当前默认 H2 内存库，重启数据丢失。切换至 MySQL 后，告警记录和历史报文可持久保存，适合演示和汇报</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td><strong>位置跳变检测完善</strong></td>
+      <td><span class="tag tag-red">高</span></td>
+      <td>当前仅对比相邻两条报文，正常 tick 间隔 1 秒。攻击注入后需配合攻击前后位置对比。可改用"滑动窗口+中位数"检测</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td><strong>告警页面增强</strong></td>
+      <td><span class="tag tag-orange">中</span></td>
+      <td>前端 SecurityAlertView 增加统计卡片（红/橙/黄计数）、一键标记已处理、关联飞机详情跳转</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td><strong>数据可视化增强</strong></td>
+      <td><span class="tag tag-orange">中</span></td>
+      <td>DataView 增加高度变化折线图、速度分布图、报文类型统计柱状图；选中一架飞机查看其实时航迹</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td><strong>首页仪表盘完善</strong></td>
+      <td><span class="tag tag-orange">中</span></td>
+      <td>地图右侧面板增加安全态势摘要（最近 N 条告警）、底部实时报文滚动日志</td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td><strong>真实 CRC 在仿真中的校验</strong></td>
+      <td><span class="tag tag-orange">中</span></td>
+      <td>tick 生成报文后调用 CrcService.isValid() 做真实校验（当前 crcValid 直接设 true）</td>
+    </tr>
+    <tr>
+      <td>8</td>
+      <td><strong>多飞机轨迹显示</strong></td>
+      <td style="color:var(--stone);">低</td>
+      <td>地图上同时显示多架飞机历史轨迹（不同颜色区分），增强演示效果</td>
+    </tr>
+    <tr>
+      <td>9</td>
+      <td><strong>WebSocket 实时推送</strong></td>
+      <td style="color:var(--stone);">低</td>
+      <td>当前 3 秒轮询，改为 WebSocket 推送可降低延迟，飞机位置更实时</td>
+    </tr>
+    <tr>
+      <td>10</td>
+      <td><strong>加密模块集成</strong></td>
+      <td style="color:var(--stone);">低</td>
+      <td>按项目整体计划，第三周集成区块链+身份基广播加密（EncryptionService）</td>
+    </tr>
+    <tr>
+      <td>11</td>
+      <td><strong>数据导出功能</strong></td>
+      <td style="color:var(--stone);">低</td>
+      <td>CSV 导出报文记录和告警记录，用于项目文档和报告</td>
+    </tr>
+    <tr>
+      <td>12</td>
+      <td><strong>单元测试补充</strong></td>
+      <td style="color:var(--stone);">低</td>
+      <td>为 SecurityCheckService 和 SimulationService 补充 JUnit 测试用例</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ═══════════════════════ 里程碑 ═══════════════════════ -->
+<h2>十、当前里程碑状态</h2>
+
+<table>
+  <thead><tr><th style="width:8%;">里程碑</th><th style="width:22%;">原计划日期</th><th style="width:22%;">实际完成日期</th><th style="width:28%;">检查标准</th><th style="width:20%;">状态</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>M1</td>
+      <td>7/29（第一周末）</td>
+      <td>7/25</td>
+      <td>前后端能通信，数据库能读写，模拟器能产生数据</td>
+      <td><span class="tag tag-green">✅ 提前 4 天</span></td>
+    </tr>
+    <tr>
+      <td>—</td>
+      <td>7/30–7/31（Day 8-9）</td>
+      <td>7/25</td>
+      <td>地图有飞机图标+轨迹，列表可搜索/筛选/跳转聚焦</td>
+      <td><span class="tag tag-green">✅ 提前 5 天</span></td>
+    </tr>
+    <tr>
+      <td>—</td>
+      <td>8/1（Day 10）</td>
+      <td>7/25</td>
+      <td>5 条安全检测规则 + 攻击模拟 + 告警 API</td>
+      <td><span class="tag tag-green">✅ 提前 7 天</span></td>
+    </tr>
+    <tr>
+      <td>M2</td>
+      <td>8/5（第二周末）</td>
+      <td><em>—</em></td>
+      <td>核心链路打通，地图+告警完整可用</td>
+      <td style="color:var(--brand);">已具备条件</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="callout">
+  <strong>当前进度：超前原计划约一周。</strong> 下一个重点任务是 Day 13 告警页面增强和 Day 14 全链路联调（原定 8/4-8/5），可择机提前推进；或者优先处理"高优先级改进项"（CRC 生成 + MySQL 切换）夯实基础。
+</div>
+
+<div class="footer">
+  <span>内部 · 南京航空航天大学 · 面向飞行器监视的安全可信ADS-B仿真系统</span>
+  <span>2026.07.25 · 阶段报告</span>
+</div>
+
+</body>
+</html>
