@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>ADS-B 仿真系统调研报告</title>
+<meta name="author" content="熊康">
+<meta name="generator" content="Kami">
+<style>
+  @font-face {
+    font-family: "TsangerJinKai02";
+    src: url("https://cdn.jsdelivr.net/gh/tw93/Kami@main/assets/fonts/TsangerJinKai02-W05.ttf") format("truetype");
+    font-weight: 500; font-style: normal;
+  }
+  @font-face {
+    font-family: "TsangerJinKai02";
+    src: url("https://cdn.jsdelivr.net/gh/tw93/Kami@main/assets/fonts/TsangerJinKai02-W04.ttf") format("truetype");
+    font-weight: 400; font-style: normal;
+  }
+
+  @page { size: A4; margin: 14mm 17mm; background: #f5f4ed; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --parchment: #f5f4ed;
+    --ivory: #faf9f5;
+    --near-black:#141413;
+    --dark-warm: #3d3d3a;
+    --olive: #504e49;
+    --stone: #6b6a64;
+    --brand: #1B365D;
+    --border: #e8e6dc;
+    --border-soft:#e5e3d8;
+    --tag-bg: #E4ECF5;
+    --serif: "TsangerJinKai02", "Source Han Serif SC", Georgia, serif;
+  }
+
+  html, body { background: var(--parchment); }
+  @media screen {
+    body { max-width: 210mm; margin: 0 auto; padding: 14mm 17mm; }
+  }
+
+  body {
+    color: var(--near-black);
+    font-family: var(--serif);
+    font-size: 9pt;
+    line-height: 1.55;
+    letter-spacing: 0.3pt;
+  }
+
+  .header {
+    border-left: 2.5pt solid var(--brand);
+    border-radius: 1.5pt;
+    padding-left: 8pt;
+    margin-bottom: 10pt;
+    display: flex; align-items: flex-end; justify-content: space-between;
+  }
+  .eyebrow { font-size: 8pt; color: var(--brand); letter-spacing: 1pt; text-transform: uppercase; margin-bottom: 2pt; }
+  h1 { font-family: var(--serif); font-size: 20pt; font-weight: 500; color: var(--near-black); line-height: 1.15; margin-bottom: 3pt; }
+  .subtitle { font-size: 9pt; color: var(--olive); }
+  .meta { font-size: 8pt; color: var(--stone); text-align: right; line-height: 1.4; }
+
+  .metrics {
+    display: flex; gap: 10pt;
+    margin-bottom: 12pt; padding: 2pt 0 4pt 0;
+    border-bottom: 0.3pt dotted var(--border);
+  }
+  .metric { flex: 1; display: flex; align-items: baseline; gap: 3pt; }
+  .metric-value { font-size: 16pt; font-weight: 500; color: var(--brand); line-height: 1; }
+  .metric-label { font-size: 8pt; color: var(--olive); }
+
+  h2 {
+    font-family: var(--serif); font-size: 13pt; font-weight: 500;
+    color: var(--near-black); margin-bottom: 4pt; margin-top: 10pt;
+  }
+  h3 { font-size: 10pt; font-weight: 500; color: var(--dark-warm); margin: 6pt 0 3pt 0; }
+
+  .tag {
+    display: inline-block;
+    background: var(--tag-bg); color: var(--brand);
+    font-size: 8pt; font-weight: 500;
+    padding: 1pt 4pt; border-radius: 3pt;
+  }
+  .tag-green { background: #e8f5e9; color: #2d6a4f; }
+  .tag-red { background: #fce4ec; color: #c62828; }
+  .tag-orange { background: #fff3e0; color: #e65100; }
+  .tag-blue { background: #e3f2fd; color: #0d47a1; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 8pt; margin: 5pt 0; break-inside: avoid; }
+  table th { text-align: left; font-weight: 500; color: var(--dark-warm); padding: 3pt 4pt; border-bottom: 1pt solid var(--border); }
+  table td { padding: 3pt 4pt; border-bottom: 0.3pt solid var(--border-soft); vertical-align: top; line-height: 1.4; }
+
+  .callout {
+    background: transparent;
+    border-left: 1.8pt solid var(--brand);
+    padding: 2pt 0 2pt 10pt; margin: 6pt 0;
+    font-size: 9pt; line-height: 1.5; color: var(--olive);
+    break-inside: avoid;
+  }
+
+  .callout-warn {
+    background: #fef9f0;
+    border-left: 1.8pt solid #e8c870;
+    padding: 4pt 10pt; margin: 6pt 0;
+    font-size: 9pt; line-height: 1.5; color: var(--dark-warm);
+    break-inside: avoid;
+  }
+
+  .footer { margin-top: 14pt; padding-top: 4pt; border-top: 0.3pt dotted var(--border); font-size: 8pt; color: var(--stone); display: flex; justify-content: space-between; }
+
+  code {
+    font-family: "JetBrains Mono", "SF Mono", Consolas, monospace;
+    font-size: 7.5pt; background: var(--ivory);
+    padding: 1pt 3pt; border-radius: 2pt; color: var(--dark-warm);
+  }
+
+  .project-card {
+    background: var(--ivory);
+    border: 0.3pt solid var(--border-soft);
+    border-radius: 4pt;
+    padding: 8pt 10pt; margin: 6pt 0;
+    break-inside: avoid;
+  }
+  .project-card h4 { font-size: 9pt; color: var(--brand); margin-bottom: 3pt; }
+  .project-card .meta-line { font-size: 7pt; color: var(--stone); margin-bottom: 3pt; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="title-block">
+    <div class="eyebrow">技术调研报告 · 2026.07.25</div>
+    <h1>ADS-B 仿真系统<br>开源项目调研报告</h1>
+    <div class="subtitle">面向"面向飞行器监视的安全可信ADS-B仿真系统"项目——现有系统功能对比、架构分析与差异化定位</div>
+  </div>
+  <div class="meta">
+    <strong>熊康</strong><br>
+    2026 年 7 月 25 日<br>
+    南京航空航天大学
+  </div>
+</div>
+
+<div class="metrics">
+  <div class="metric"><div class="metric-value">32</div><div class="metric-label">调研项目总数</div></div>
+  <div class="metric"><div class="metric-value">10</div><div class="metric-label">重点分析项目</div></div>
+  <div class="metric"><div class="metric-value">5</div><div class="metric-label">分层维度</div></div>
+  <div class="metric"><div class="metric-value">3</div><div class="metric-label">最值得参考项目</div></div>
+</div>
+
+<!-- ═══════════════ 一、总览 ═══════════════ -->
+<h2>一、现网生态总览</h2>
+
+<div class="callout">
+<strong>核心发现：</strong>现有 ADS-B 开源生态由五层独立工具构成——信号生成、报文解码、可视化展示、安全检测、仿真模拟。每层都有成熟项目，但<strong>没有任何一个项目把五层整合在一起</strong>。你的项目恰好填补了这个空白。
+</div>
+
+<h3>1.1 五层生态全景图</h3>
+
+<table>
+  <thead><tr><th style="width:12%;">层级</th><th style="width:18%;">代表项目</th><th style="width:10%;">语言</th><th style="width:10%;">GitHub Stars</th><th style="width:50%;">能力边界</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>信号生成层</strong></td>
+      <td>osmo-adsb-gen<br>pluto-adsb-sim<br>ViralAir</td>
+      <td>C / Go</td>
+      <td>~50-100</td>
+      <td>生成 ADS-B 射频波形通过 SDR 发射。纯硬件信号层，不涉及仿真逻辑。需配合 HackRF / ADALM-Pluto / USRP 使用。</td>
+    </tr>
+    <tr>
+      <td><strong>报文解码层</strong></td>
+      <td>dump1090<br>pyModeS<br>jet1090<br>readsb</td>
+      <td>C / Python / Rust</td>
+      <td>855 / ~800 / ~100 / 443</td>
+      <td>接收原始信号 → 解析为结构化数据。生态最成熟的一层。dump1090 是事实标准，pyModeS 是 Python 教学首选。</td>
+    </tr>
+    <tr>
+      <td><strong>可视化层</strong></td>
+      <td>skies-adsb<br>tar1090<br>Virtual Radar Server<br>pyAirwaves</td>
+      <td>JS / .NET / Python</td>
+      <td>~500 / 1484 / 高 / ~50</td>
+      <td>在地图/3D场景上展示真实飞机位置。tar1090 最流行，skies-adsb 视觉效果最炫。只展示，不模拟，不安检。</td>
+    </tr>
+    <tr>
+      <td><strong>安全检测层</strong></td>
+      <td>DApIA-Anomaly-Detection<br>AdsbAnomalyDetector<br>GNU Radio ADS-B Spoofer</td>
+      <td>Python / GNU Radio</td>
+      <td>~30-50</td>
+      <td>检测欺骗/洪泛/重放攻击，或生成攻击信号。学术研究导向，缺乏工程化的前后端系统。</td>
+    </tr>
+    <tr>
+      <td><strong>仿真模拟层</strong></td>
+      <td>tangram<br>Air-Traffic-Simulation<br>ArduPilot SITL<br>traffic</td>
+      <td>Python/Rust/Vue<br>MATLAB<br>C++<br>Python</td>
+      <td>32 / ~20 / — / ~500</td>
+      <td>模拟空域交通流或飞行器行为。tangram 架构最先进，traffic 数据最丰富。都不涉及安全攻防。</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ═══════════════ 二、重点项目详解 ═══════════════ -->
+<h2>二、重点开源项目详解</h2>
+
+<div class="project-card">
+  <h4>🏆 tangram — 最值得参考架构</h4>
+  <div class="meta-line">open-aviation/tangram · Python + Rust + Vue + Redis · JOSS 学术期刊发表 · 荷兰 NWO 基金资助</div>
+  <table>
+    <tr><td style="width:20%;"><strong>核心理念</strong></td><td>插件化、完全解耦的模块化 ATM 研究平台。所有组件通过 Redis pub/sub 通信，可动态加载/卸载插件。</td></tr>
+    <tr><td><strong>技术亮点</strong></td><td>① Rust 写的 jet1090 解码器（性能远超 dump1090）；② Vue + Deck.gl 前端动态加载插件 UI；③ Redis 消息总线解耦所有组件；④ Apache Arrow RecordBatch 高性能数据存储</td></tr>
+    <tr><td><strong>可借鉴之处</strong></td><td>插件架构设计、Rust 解码器集成、前端 Deck.gl 航空可视化、WebSocket + Redis 实时数据流</td></tr>
+    <tr><td><strong>GitHub</strong></td><td>github.com/open-aviation/tangram</td></tr>
+  </table>
+</div>
+
+<div class="project-card">
+  <h4>🔐 DApIA-Project — 安全检测功能最接近你的需求</h4>
+  <div class="meta-line">DApIA-Project · Python · 法国学术项目</div>
+  <table>
+    <tr><td style="width:20%;"><strong>ADSB-Visualizer</strong></td><td>Web 端 ADS-B 数据可视化回放器。支持播放/暂停/快进/跳转、多机跟踪、航迹显示、高度/速度曲线图。<strong>在线 Demo: adsb-visualizer.web.app</strong></td></tr>
+    <tr><td><strong>Anomaly-Detection</strong></td><td>Python 异常检测库（<code>pip install AdsbAnomalyDetector</code>）。一个 <code>predict()</code> 函数，输入最近 1 秒的报文列表，返回 spoofing/flooding/replay 三种异常标记。内部维护历史报文缓冲区。</td></tr>
+    <tr><td><strong>可借鉴之处</strong></td><td>攻击回放可视化设计、<code>predict()</code> 统一检测接口、detection + visualizer 联动</td></tr>
+    <tr><td><strong>GitHub</strong></td><td>github.com/DApIA-Project</td></tr>
+  </table>
+</div>
+
+<div class="project-card">
+  <h4>📡 pyModeS — 你的解码器的 Python 原型</h4>
+  <div class="meta-line">junzis/pyModeS · Python · TU Delft 航空航天工程学院 · ~800 stars</div>
+  <table>
+    <tr><td style="width:20%;"><strong>解码能力</strong></td><td>DF17/18 ADS-B 全部报文类型（识别、位置、速度）、DF20/21 Mode-S Comm-B、气象报告。CPR 全局/参考位置解码。高度 Q-bit/Gillham 双模式。速度矢量解码。</td></tr>
+    <tr><td><strong>附带工具</strong></td><td><code>modeslive</code> 实时流量查看工具；内置 <code>simulator.py</code> 模块（功能未文档化）；TCP 客户端流式解码；Extra 模块：气象报告、EHS 数据</td></tr>
+    <tr><td><strong>可借鉴之处</strong></td><td>这是你的 AdsbDecoderService + CprDecoderService + CrcService 的原型。你的 Java 代码本质上是 pyModeS 的移植版。建议对比验证解码准确性。</td></tr>
+    <tr><td><strong>GitHub</strong></td><td>github.com/junzis/pyModeS</td></tr>
+  </table>
+</div>
+
+<div class="project-card">
+  <h4>🖥 Virtual Radar Server — 唯一支持模拟器同步的</h4>
+  <div class="meta-line">virtualradarserver.co.uk · .NET/C# · Windows/Linux(Mono)</div>
+  <table>
+    <tr><td style="width:20%;"><strong>独特功能</strong></td><td>可与 <strong>Microsoft Flight Simulator 2020 / XPlane</strong> 同步，将模拟飞行中的飞机显示在 ADS-B 雷达界面上。无需任何 SDR 硬件即可看到"假飞机"在地图上飞行。</td></tr>
+    <tr><td><strong>可借鉴之处</strong></td><td>模拟器数据对接方案、Google Maps 插件架构、Web 端雷达界面设计</td></tr>
+    <tr><td><strong>网站</strong></td><td>virtualradarserver.co.uk</td></tr>
+  </table>
+</div>
+
+<div class="project-card">
+  <h4>🛩 skies-adsb — 视觉效果最炫</h4>
+  <div class="meta-line">machineinteractive/skies-adsb · JavaScript/WebGL · ~500 stars</div>
+  <table>
+    <tr><td style="width:20%;"><strong>核心功能</strong></td><td>纯浏览器端 3D 空中交通显示。Three.js 渲染飞机模型 + 地形 + 空域。支持自定义 3D 地图图层。PWA 离线可用。连接本地 dump1090 数据源。</td></tr>
+    <tr><td><strong>可借鉴之处</strong></td><td>3D 飞机可视化（答辩时比 2D 地图震撼得多）、WebGL 渲染性能优化</td></tr>
+    <tr><td><strong>GitHub</strong></td><td>github.com/machineinteractive/skies-adsb</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════ 三、对比分析 ═══════════════ -->
+<h2>三、核心维度对比：你的项目 vs 现有系统</h2>
+
+<h3>3.1 功能矩阵对比</h3>
+
+<table>
+  <thead><tr><th>功能维度</th><th>dump1090</th><th>pyModeS</th><th>tangram</th><th>DApIA</th><th>tar1090</th><th>skies-adsb</th><th>pyAirwaves</th><th><strong>你的系统</strong></th></tr></thead>
+  <tbody>
+    <tr><td>报文解码</td><td>✅ C</td><td>✅ Python</td><td>✅ Rust</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td><td><strong>✅ Java</strong></td></tr>
+    <tr><td>CPR 位置解码</td><td>✅</td><td>✅</td><td>✅</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td><td><strong>✅</strong></td></tr>
+    <tr><td>CRC-24 校验</td><td>✅</td><td>✅</td><td>✅</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td><td><strong>✅</strong></td></tr>
+    <tr><td>飞行器仿真</td><td>❌</td><td>⚠️ 基础</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td><td>⚠️ 回放</td><td><strong>✅ 实时仿真引擎</strong></td></tr>
+    <tr><td>攻击注入</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td><td><strong>✅ 5种攻击</strong></td></tr>
+    <tr><td>安全检测</td><td>❌</td><td>❌</td><td>❌</td><td>✅</td><td>❌</td><td>❌</td><td>❌</td><td><strong>✅ 5项检测</strong></td></tr>
+    <tr><td>实时地图</td><td>❌</td><td>❌</td><td>✅ Deck.gl</td><td>✅ Leaflet</td><td>✅ Leaflet</td><td>✅ 3D</td><td>✅ Leaflet</td><td><strong>✅ Leaflet</strong></td></tr>
+    <tr><td>告警管理</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td><td><strong>✅ 持久化</strong></td></tr>
+    <tr><td>数据持久化</td><td>❌</td><td>❌</td><td>✅ Delta Lake</td><td>❌</td><td>❌</td><td>❌</td><td>⚠️ 计划中</td><td><strong>✅ MySQL/H2</strong></td></tr>
+    <tr><td>Web 前端</td><td>❌</td><td>❌</td><td>✅ Vue</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td><td><strong>✅ Vue</strong></td></tr>
+    <tr><td>SDR 硬件支持</td><td>✅</td><td>❌</td><td>✅</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td><td><strong>❌</strong></td></tr>
+    <tr><td>国产化部署</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td><td><strong>✅ 高德地图</strong></td></tr>
+  </tbody>
+</table>
+
+<h3>3.2 差异化定位</h3>
+
+<div class="callout">
+<strong>你的系统是唯一一个覆盖 "生成报文 → 解码 → 仿真飞行 → 攻击注入 → 安全检测 → 告警管理 → 地图可视化" 完整链路、并提供 Web 管理界面的系统。</strong>
+</div>
+
+<p>现有系统的组合模式：<code>dump1090(解码) + tar1090(展示) = 只能看真实飞机</code>；<code>pyModeS(解码) + 自写脚本 = 学术研究</code>；<code>GNU Radio(信号) + HackRF(发射) = 攻击实验</code>。每套工具链都需要用户自己拼装。</p>
+
+<p>你的系统提供了一站式体验：启动一个 jar 包 → 浏览器打开 → 看到飞机在飞 → 点一下攻击按钮 → 看到告警触发 → 看到轨迹变色。这种<strong>开箱即用的完整体验</strong>是其他所有项目都不具备的。</p>
+
+<!-- ═══════════════ 四、国内相关系统 ═══════════════ -->
+<h2>四、国内相关研究（论文/专利）</h2>
+
+<table>
+  <thead><tr><th style="width:22%;">项目/论文</th><th style="width:18%;">来源机构</th><th style="width:12%;">平台</th><th style="width:48%;">内容</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>ADS-B 数据欺骗模拟器</td>
+      <td>中国民航大学</td>
+      <td>GNU Radio + HackRF</td>
+      <td>2021 年发表。使用 Python 完成 ADS-B 报文编码和基带信号生成，通过 HackRF 发射欺骗信号。支持位置/速度/高度篡改和"宕机"模式。与你的 CRC/重放攻击思路一致。</td>
+    </tr>
+    <tr>
+      <td>基于 FlightGear 的 A-SMGCS 仿真</td>
+      <td>南京航空航天大学</td>
+      <td>FlightGear + Linux</td>
+      <td>2012 年发表。以真实 ADS-B 数据驱动 FlightGear 飞行模拟器，实现机场场面六自由度三维仿真。你们学校的学长做过的项目。</td>
+    </tr>
+    <tr>
+      <td>星基 ADS-B 系统模拟软件</td>
+      <td>国内期刊 (2019)</td>
+      <td>计算机模拟</td>
+      <td>评估星基 ADS-B 监视性能，含消息接收概率分析。卫星视角的 ADS-B 覆盖仿真。</td>
+    </tr>
+    <tr>
+      <td>航空网络靶场 ADS-B 控制器</td>
+      <td>NCL 国家网络安全实验室</td>
+      <td>Python + OPC UA</td>
+      <td>GPL V3 开源。模拟 ADS-B 地面站功能（ADS-B In/Out），支持 OT 安全培训。集成 Google Weather API 实现实时天气。</td>
+    </tr>
+    <tr>
+      <td>CN105931526B 专利</td>
+      <td>国内机构</td>
+      <td>真实 ADS-B 数据</td>
+      <td>一种基于真实 ADS-B 数据的空管模拟训练系统。支持离线回放 + 在线训练，含飞行性能/航路/进离场/盲降仿真算法。</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="callout-warn">
+<strong>注意：</strong>中国民航大学 2021 年的"ADS-B 数据欺骗模拟器"论文与你的项目研究方向高度重合。答辩时如果被问到"你这个跟民航大学那个有什么区别"，你的回答应该是：他们聚焦于信号层的欺骗发射（需要 SDR 硬件），我们聚焦于<strong>系统级的仿真验证平台</strong>（纯软件 + Web 可视化 + 检测算法集成 + 告警管理）。层次不同，相互补充。
+</div>
+
+<!-- ═══════════════ 五、架构参考 ═══════════════ -->
+<h2>五、值得借鉴的架构设计</h2>
+
+<h3>5.1 tangram 的插件架构（最值得学习）</h3>
+
+<pre>
+┌─────────────────────────────────────────────┐
+│                 Redis Pub/Sub                │
+│          (所有组件的消息中枢)                  │
+└──┬──────┬──────┬──────┬──────┬──────────────┘
+   │      │      │      │      │
+   ▼      ▼      ▼      ▼      ▼
+┌─────┐┌─────┐┌─────┐┌─────┐┌──────────┐
+│jet  ││weather││history││explore││ 自定义   │
+│1090 ││plugin││plugin││plugin││ plugin   │
+│解码 ││ 气象 ││ 存储 ││ 探索 ││ (你的)   │
+└─────┘└─────┘└─────┘└─────┘└──────────┘
+
+你的系统可以借鉴：把 SecurityCheckService 设计为独立插件，
+通过消息队列接收报文，检测到异常后发布告警事件。
+</pre>
+
+<h3>5.2 dump1090 的数据输出格式（生态标准）</h3>
+
+<p>dump1090 的 TCP 30003 端口输出的 SBS-1 格式是 ADS-B 生态的<strong>事实数据交换标准</strong>。如果你的系统能对接 dump1090 的数据格式，就能从"纯仿真"升级为"仿真 + 真实数据混合"。只需实现一个 TCP 客户端读取 dump1090 的数据流即可。</p>
+
+<h3>5.3 pyModeS 的解码接口设计</h3>
+
+<pre>
+# pyModeS 的函数式 API 风格
+pms.adsb.icao(msg)           # → "6F922D"
+pms.adsb.callsign(msg)       # → "CCA3124"
+pms.adsb.altitude(msg)       # → 30000
+pms.adsb.velocity(msg)       # → (450, 270, 0, 'GS')
+pms.adsb.position(msg_even, msg_odd, t_even, t_odd)  # → (32.45, 118.12)
+</pre>
+
+<p>你的 AdsbDecoderService 可以封装类似的简洁 API，方便后续扩展其他报文类型。</p>
+
+<!-- ═══════════════ 六、总结 ═══════════════ -->
+<h2>六、结论与建议</h2>
+
+<h3>6.1 你的项目定位</h3>
+
+<div class="callout">
+<strong>一句话：</strong>面向 ADS-B 安全的<strong>一站式软件仿真验证平台</strong>——覆盖报文生成、解码、飞行器仿真、攻击注入、安全检测、告警管理、地图可视化的完整链路。<br>
+<strong>一句话差异：</strong>现有工具全是"单层零件"，你的系统是"整车"。
+</div>
+
+<h3>6.2 答辩时可引用的话术</h3>
+
+<ul style="padding-left:14pt; font-size:9pt;">
+  <li style="margin-bottom:4pt;">"现有 ADS-B 开源生态由 30+ 个独立工具构成，但没有任何一个系统将仿真、攻击、检测、可视化整合在一起。我们的工作填补了这个空白。"</li>
+  <li style="margin-bottom:4pt;">"dump1090 能解码、tar1090 能展示，但它们都只能处理真实飞机的数据，不支持安全攻防实验。DApIA 能做异常检测，但没有仿真引擎和前后端系统。tangram 架构最先进，但不涉及安全。"</li>
+  <li style="margin-bottom:4pt;">"我们的报文编解码参考了 TU Delft 的 pyModeS 库（学术界 ADS-B 解码的事实标准），CRC-24 实现严格遵循 DO-260B 标准。"</li>
+  <li style="margin-bottom:4pt;">"与硬件方案（SDR+GNU Radio）相比，纯软件方案的独特性在于：可在任何环境部署、可批量复现测试、可量化为安全指标（检出率/误报率）。"</li>
+</ul>
+
+<h3>6.3 待补充的维度</h3>
+
+<table>
+  <thead><tr><th style="width:5%;">#</th><th style="width:35%;">后续改进方向</th><th style="width:60%;">调研依据</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>对接 dump1090 数据源（真实+仿真混合）</td><td>dump1090 是生态标准，TCP 30003 端口输出 SBS-1 格式</td></tr>
+    <tr><td>2</td><td>参考 tangram 架构做插件化改造</td><td>Redis pub/sub + 插件注册机制，便于扩展新检测算法</td></tr>
+    <tr><td>3</td><td>增加 TC=19 速度报文生成（目前只生成 TC=11）</td><td>pyModeS 证明交替发送多种报文类型更真实</td></tr>
+    <tr><td>4</td><td>参考 DApIA 的 predict() 统一检测接口</td><td>当前 SecurityCheckService 的 5 个 check 各自独立</td></tr>
+    <tr><td>5</td><td>3D 可视化（答辩效果大幅提升）</td><td>skies-adsb 的 Three.js 方案已成熟</td></tr>
+    <tr><td>6</td><td>与真实空管模拟器对接的可能性</td><td>Virtual Radar Server 的 MSFS/XPlane 对接方案可参考</td></tr>
+  </tbody>
+</table>
+
+<h3>6.4 项目列表汇总</h3>
+
+<table>
+  <thead><tr><th style="width:5%;">#</th><th style="width:25%;">项目名</th><th style="width:10%;">语言</th><th style="width:10%;">Stars</th><th style="width:50%;">一句话描述</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td><strong>tangram</strong></td><td>Python/Rust/Vue</td><td>32</td><td>插件化实时 ATM 研究平台，架构最先进，JOSS 发表</td></tr>
+    <tr><td>2</td><td><strong>DApIA-Project</strong></td><td>Python</td><td>~30</td><td>ADS-B 攻击可视化 + 异常检测库，有在线 Demo</td></tr>
+    <tr><td>3</td><td><strong>pyModeS</strong></td><td>Python</td><td>~800</td><td>TU Delft 的 ADS-B/Mode-S 解码标准库</td></tr>
+    <tr><td>4</td><td>dump1090</td><td>C</td><td>855</td><td>ADS-B 解码器事实标准，生态核心</td></tr>
+    <tr><td>5</td><td>tar1090</td><td>JS</td><td>1484</td><td>最流行的 ADS-B Web 地图界面</td></tr>
+    <tr><td>6</td><td>skies-adsb</td><td>JS/WebGL</td><td>~500</td><td>浏览器 3D 空中交通显示</td></tr>
+    <tr><td>7</td><td>Virtual Radar Server</td><td>.NET</td><td>高</td><td>支持 MSFS/XPlane 模拟器同步的雷达界面</td></tr>
+    <tr><td>8</td><td>pyAirwaves</td><td>Python</td><td>~50</td><td>含仿真脚本的 ADS-B/AIS 处理展示平台</td></tr>
+    <tr><td>9</td><td>osmo-adsb-gen</td><td>C</td><td>—</td><td>Osmocom 的 ADS-B 测试信号生成器</td></tr>
+    <tr><td>10</td><td>pluto-adsb-sim</td><td>C</td><td>—</td><td>ADALM-Pluto SDR 的 ADS-B 信号 IQ 流生成</td></tr>
+    <tr><td>11</td><td>ViralAir</td><td>Go</td><td>—</td><td>HackRF 用的 ADS-B 报文生成工具</td></tr>
+    <tr><td>12</td><td>jet1090</td><td>Rust</td><td>~100</td><td>tangram 内置的高性能 Rust ADS-B 解码器</td></tr>
+    <tr><td>13</td><td>readsb</td><td>C</td><td>443</td><td>dump1090 的现代替代品，支持多种输出格式</td></tr>
+    <tr><td>14</td><td>traffic</td><td>Python</td><td>~500</td><td>OpenSky 数据处理与空中交通分析库</td></tr>
+    <tr><td>15</td><td>Air-Traffic-Simulation</td><td>MATLAB</td><td>~20</td><td>ATC 算法测试框架，支持真实/合成 ADS-B 数据</td></tr>
+    <tr><td>16</td><td>AdsbAnomalyDetector</td><td>Python</td><td>—</td><td>AI 驱动的 ADS-B 欺骗/洪泛/重放检测 PyPI 包</td></tr>
+    <tr><td>17</td><td>ArduPilot SITL</td><td>C++</td><td>高</td><td>内置 ADS-B 模拟器，生成虚拟飞机并做碰撞检测</td></tr>
+    <tr><td>18</td><td>airspace-visualizer</td><td>JS</td><td>—</td><td>含 mock_data_generator.py 的雷达样式 HTML 展示器</td></tr>
+  </tbody>
+</table>
+
+<div class="footer">
+  <span>ADS-B 安全可信仿真系统 · 技术调研报告</span>
+  <span>熊康 · 2026.07.25</span>
+</div>
+
+</body>
+</html>

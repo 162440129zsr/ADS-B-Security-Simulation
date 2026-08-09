@@ -91,7 +91,12 @@
         <el-divider/>
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
           <span style="font-size:13px;color:#e0e0e0;">近期报文（最近 {{ messages.length }} 条）</span>
-          <el-button size="small" @click="locateOnMap" type="primary" plain>🗺 在地图中定位</el-button>
+          <div style="display:flex;gap:6px;">
+            <el-button size="small" @click="resetStatus" type="warning" plain :loading="resetting">
+              🔄 重置为正常
+            </el-button>
+            <el-button size="small" @click="locateOnMap" type="primary" plain>🗺 在地图中定位</el-button>
+          </div>
         </div>
         <div v-if="messages.length===0" style="color:#666;font-size:12px;padding:8px;">暂无报文记录</div>
         <div v-else style="max-height:200px;overflow-y:auto;">
@@ -108,7 +113,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { fetchAircraft, fetchMessages } from '@/api'
+import { fetchAircraft, fetchMessages, updateAircraftStatus } from '@/api'
+import { ElMessage } from 'element-plus'
 
 const router = useRouter()
 const list = ref<any[]>([])
@@ -117,6 +123,7 @@ const statusFilter = ref('')
 const selected = ref<any>(null)
 const messages = ref<any[]>([])
 const dialogVisible = ref(false)
+const resetting = ref(false)
 let timer: number
 
 const normalCount = computed(() => list.value.filter(a => a.status === '正常').length)
@@ -142,6 +149,20 @@ function locateOnMap() {
   if (!selected.value) return
   dialogVisible.value = false
   router.push({ path: '/', query: { focus: selected.value.icao } })
+}
+
+async function resetStatus() {
+  if (!selected.value) return
+  resetting.value = true
+  try {
+    await updateAircraftStatus(selected.value.icao, '正常')
+    selected.value.status = '正常'
+    ElMessage.success(`${selected.value.icao} 状态已重置为正常`)
+    load()
+  } catch (_) {
+    ElMessage.error('重置失败')
+  }
+  resetting.value = false
 }
 
 async function load() {

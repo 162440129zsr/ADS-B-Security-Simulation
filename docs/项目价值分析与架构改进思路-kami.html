@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>ADS-B 仿真系统 · 项目价值分析与架构改进思路</title>
+<meta name="author" content="熊康">
+<meta name="generator" content="Kami">
+<style>
+  @font-face {
+    font-family: "TsangerJinKai02";
+    src: url("https://cdn.jsdelivr.net/gh/tw93/Kami@main/assets/fonts/TsangerJinKai02-W05.ttf") format("truetype");
+    font-weight: 500; font-style: normal;
+  }
+  @font-face {
+    font-family: "TsangerJinKai02";
+    src: url("https://cdn.jsdelivr.net/gh/tw93/Kami@main/assets/fonts/TsangerJinKai02-W04.ttf") format("truetype");
+    font-weight: 400; font-style: normal;
+  }
+
+  @page { size: A4; margin: 14mm 17mm; background: #f5f4ed; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --parchment: #f5f4ed;
+    --ivory:     #faf9f5;
+    --near-black:#141413;
+    --dark-warm: #3d3d3a;
+    --olive:     #504e49;
+    --stone:     #6b6a64;
+    --brand:     #1B365D;
+    --border:    #e8e6dc;
+    --border-soft:#e5e3d8;
+    --tag-bg:    #E4ECF5;
+    --serif: "TsangerJinKai02", "Source Han Serif SC", Georgia, serif;
+    --sans: var(--serif);
+  }
+
+  html, body { background: var(--parchment); }
+  @media screen {
+    body { max-width: 210mm; margin: 0 auto; padding: 14mm 17mm; }
+  }
+
+  body {
+    color: var(--near-black);
+    font-family: var(--serif);
+    font-size: 9pt;
+    line-height: 1.55;
+    letter-spacing: 0.3pt;
+  }
+
+  .header {
+    border-left: 2.5pt solid var(--brand);
+    border-radius: 1.5pt;
+    padding-left: 8pt;
+    margin-bottom: 10pt;
+    display: flex; align-items: flex-end; justify-content: space-between;
+  }
+  .eyebrow { font-size: 8pt; color: var(--brand); letter-spacing: 1pt; text-transform: uppercase; margin-bottom: 2pt; }
+  h1 { font-family: var(--serif); font-size: 20pt; font-weight: 500; color: var(--near-black); line-height: 1.15; margin-bottom: 3pt; }
+  .subtitle { font-size: 9pt; color: var(--olive); }
+  .meta { font-size: 8pt; color: var(--stone); text-align: right; line-height: 1.4; }
+
+  .metrics {
+    display: flex; gap: 10pt;
+    margin-bottom: 12pt; padding: 2pt 0 4pt 0;
+    border-bottom: 0.3pt dotted var(--border);
+  }
+  .metric { flex: 1; display: flex; align-items: baseline; gap: 3pt; }
+  .metric-value { font-size: 16pt; font-weight: 500; color: var(--brand); line-height: 1; }
+  .metric-label { font-size: 8pt; color: var(--olive); }
+
+  h2 {
+    font-family: var(--serif); font-size: 13pt; font-weight: 500;
+    color: var(--near-black); margin-bottom: 4pt; margin-top: 10pt;
+  }
+  h3 { font-size: 10pt; font-weight: 500; color: var(--dark-warm); margin: 6pt 0 3pt 0; }
+
+  .tag {
+    display: inline-block;
+    background: var(--tag-bg); color: var(--brand);
+    font-size: 8pt; font-weight: 500;
+    padding: 1pt 4pt; border-radius: 3pt;
+  }
+  .tag-green { background: #e8f5e9; color: #2d6a4f; }
+  .tag-red { background: #fce4ec; color: #c62828; }
+  .tag-orange { background: #fff3e0; color: #e65100; }
+  .tag-blue { background: #e3f2fd; color: #0d47a1; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 8pt; margin: 5pt 0; break-inside: avoid; }
+  table th { text-align: left; font-weight: 500; color: var(--dark-warm); padding: 3pt 4pt; border-bottom: 1pt solid var(--border); }
+  table td { padding: 3pt 4pt; border-bottom: 0.3pt solid var(--border-soft); vertical-align: top; line-height: 1.4; }
+
+  .callout {
+    background: transparent;
+    border-left: 1.8pt solid var(--brand);
+    padding: 2pt 0 2pt 10pt; margin: 6pt 0;
+    font-size: 9pt; line-height: 1.5; color: var(--olive);
+    break-inside: avoid;
+  }
+
+  .callout-warn {
+    background: #fef9f0;
+    border-left: 1.8pt solid #e8c870;
+    padding: 4pt 10pt; margin: 6pt 0;
+    font-size: 9pt; line-height: 1.5; color: var(--dark-warm);
+    break-inside: avoid;
+  }
+
+  .footer { margin-top: 14pt; padding-top: 4pt; border-top: 0.3pt dotted var(--border); font-size: 8pt; color: var(--stone); display: flex; justify-content: space-between; }
+
+  code {
+    font-family: "JetBrains Mono", "SF Mono", Consolas, monospace;
+    font-size: 7.5pt; background: var(--ivory);
+    padding: 1pt 3pt; border-radius: 2pt; color: var(--dark-warm);
+  }
+
+  pre {
+    background: var(--ivory); font-size: 7.5pt; padding: 6pt 8pt;
+    border-radius: 3pt; margin: 4pt 0; line-height: 1.5;
+    border: 0.3pt solid var(--border-soft); color: var(--dark-warm);
+    font-family: "JetBrains Mono", monospace; overflow-x: auto;
+  }
+
+  .issue-box {
+    background: #fef9f0; border: 0.5pt solid #e8c870;
+    border-radius: 4pt; padding: 6pt 8pt; margin: 6pt 0;
+    font-size: 8.5pt;
+  }
+  .issue-box strong { color: #b8860b; }
+
+  .scene-card {
+    background: var(--ivory);
+    border: 0.3pt solid var(--border-soft);
+    border-radius: 4pt;
+    padding: 8pt 10pt; margin: 6pt 0;
+    break-inside: avoid;
+  }
+  .scene-card h4 { font-size: 9pt; color: var(--brand); margin-bottom: 3pt; }
+  .scene-card .label { font-size: 7pt; color: var(--stone); text-transform: uppercase; letter-spacing: 0.5pt; }
+
+  .arch-diagram {
+    background: var(--ivory);
+    border: 0.3pt solid var(--border-soft);
+    border-radius: 4pt;
+    padding: 8pt 10pt; margin: 6pt 0;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 7.5pt; line-height: 1.6;
+    white-space: pre;
+    overflow-x: auto;
+    break-inside: avoid;
+  }
+
+  .priority-list { list-style: none; padding-left: 0; }
+  .priority-list li {
+    padding: 3pt 0; margin: 2pt 0;
+    border-bottom: 0.3pt dotted var(--border-soft);
+    display: flex; align-items: flex-start; gap: 6pt;
+  }
+  .pri-dot { width: 8pt; height: 8pt; border-radius: 50%; margin-top: 2pt; flex-shrink: 0; }
+  .pri-high { background: #e94560; }
+  .pri-mid { background: #f0a500; }
+  .pri-low { background: #0f9; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="title-block">
+    <div class="eyebrow">头脑风暴纪要 · 2026.07.25</div>
+    <h1>ADS-B 安全仿真系统<br>项目价值分析与架构改进思路</h1>
+    <div class="subtitle">从"代码演示"到"安全验证平台"——关于项目实际意义、攻击场景真实性、架构缺陷与改进方向的深度讨论</div>
+  </div>
+  <div class="meta">
+    <strong>熊康</strong><br>
+    2026 年 7 月 25 日<br>
+    南京航空航天大学
+  </div>
+</div>
+
+<div class="metrics">
+  <div class="metric"><div class="metric-value">4</div><div class="metric-label">真实攻击场景</div></div>
+  <div class="metric"><div class="metric-value">1</div><div class="metric-label">核心架构缺陷</div></div>
+  <div class="metric"><div class="metric-value">8</div><div class="metric-label">改进建议</div></div>
+  <div class="metric"><div class="metric-value">3</div><div class="metric-label">答辩叙事幕</div></div>
+</div>
+
+<!-- ═══════════════ 一、项目的实际意义 ═══════════════ -->
+<h2>一、这个项目到底解决了什么问题</h2>
+
+<div class="callout">
+<strong>一句话定位：</strong>ADS-B 安全的仿真验证平台——用仿真方法复现航空监视系统的真实安全威胁，为检测算法提供不会闯祸的试验场。
+</div>
+
+<h3>1.1 ADS-B 的安全缺陷是真实存在的</h3>
+<table>
+  <thead><tr><th style="width:18%;">漏洞本质</th><th style="width:82%;">说明</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>无认证</td>
+      <td>ADS-B 报文不含任何身份认证信息。任何发射设备都可以冒充任意 ICAO 地址发送报文，接收方无法区分合法信号与伪造信号。</td>
+    </tr>
+    <tr>
+      <td>无加密</td>
+      <td>报文以明文广播，任何人在 1090MHz 频段均可接收、阅读、分析。攻击者可以实时截获航班位置信息用于非法追踪。</td>
+    </tr>
+    <tr>
+      <td>无防重放</td>
+      <td>协议层面没有时间戳或序列号机制。攻击者录制一段合法报文后反复重放，接收方无法判断这是旧数据。</td>
+    </tr>
+    <tr>
+      <td>攻击门槛极低</td>
+      <td>RTL-SDR 接收棒 ¥30-80 + HackRF 发射器 ¥1500-3000 + 开源软件（dump1090 等）= 一个研究生一个下午搭好完整的伪造信号发射台。</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>1.2 已有真实案例</h3>
+<table>
+  <thead><tr><th style="width:12%;">时间</th><th style="width:20%;">事件</th><th style="width:68%;">详情</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>2012</td>
+      <td>DEF CON 幽灵飞机</td>
+      <td>Brad Haines 用自制 ADS-B 发射器，让一架不存在的飞机出现在 FlightRadar24 的拉斯维加斯空域地图上。所有 ADS-B 接收设备都"看到"了它。</td>
+    </tr>
+    <tr>
+      <td>2013</td>
+      <td>EUROCONTROL 渗透测试</td>
+      <td>安全团队在授权下从地面广播伪造 ADS-B 信号，成功在管制员屏幕上注入不存在的飞机，管制员未发现异常。</td>
+    </tr>
+    <tr>
+      <td>2020</td>
+      <td>本·古里安大学研究</td>
+      <td>证明攻击者可以让飞机位置以<strong>渐进、看似合理</strong>的方式漂移到错误位置，现有异常检测系统不会触发警报——因为变化看起来"正常"。</td>
+    </tr>
+    <tr>
+      <td>2023</td>
+      <td>俄乌冲突 GPS 欺骗</td>
+      <td>冲突区域周边出现大量 ADS-B 位置异常，部分飞机位置数据突然跳到战区中心数百公里外，被怀疑为系统性 GPS 欺骗攻击。</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="callout">
+<strong>关键认知：</strong>你不能在真实空域中完成一次 ADS-B 欺骗攻击然后看管制员什么反应——那是违法的。所以需要仿真验证环境。
+</div>
+
+<!-- ═══════════════ 二、真实攻击情境推演 ═══════════════ -->
+<h2>二、四种真实攻击场景及其对应</h2>
+
+<h3>仿真系统 ↔ 真实世界的角色映射</h3>
+<table>
+  <thead><tr><th style="width:30%;">仿真系统</th><th style="width:70%;">现实世界</th></tr></thead>
+  <tbody>
+    <tr><td>15 架模拟飞机</td><td>空域中真实在飞的航班</td></tr>
+    <tr><td><code>SimulationService.tick()</code></td><td>地面站接收 ADS-B 信号的过程</td></tr>
+    <tr><td><code>SecurityCheckService</code></td><td>空管系统的异常检测模块</td></tr>
+    <tr><td><code>triggerAttack()</code></td><td>攻击者用 SDR 发射伪造信号</td></tr>
+    <tr><td>告警页面</td><td>空管监控屏幕上的告警弹窗</td></tr>
+    <tr><td>Dashboard 地图</td><td>管制员看到的雷达 / 地图画面</td></tr>
+  </tbody>
+</table>
+
+<div class="scene-card">
+  <h4>🛩 场景一：幽灵飞机注入 (Ghost Aircraft Injection)</h4>
+  <div class="label">对应攻击类型: 位置欺骗 / 随机攻击</div>
+  <p style="margin-top:3pt;">攻击者在机场附近向 1090MHz 频段发射伪造信号，宣称一架航班正在进近航道上。空管屏幕上出现不存在的飞机，管制员被迫清空真实航班。2016 年研究证明这种攻击足以触发 TCAS（空中防撞系统）真实告警。</p>
+  <p style="color:var(--stone);"><strong>你的系统：</strong><code>SecurityCheckService</code> 的位置跳变检测 + CRC 校验，能从真实信号中识别出伪造信号。</p>
+</div>
+
+<div class="scene-card">
+  <h4>🛩 场景二：航迹篡改 (Trajectory Tampering)</h4>
+  <div class="label">对应攻击类型: 位置欺骗</div>
+  <p style="margin-top:3pt;">攻击者截获某航班 ADS-B 广播，篡改位置字段后重新广播。接收站同时收到真实信号和伪造信号。飞机在屏幕上航迹断裂，管制员无法判断飞机真实位置。严重时两架飞机屏幕重叠但实际相距甚远。</p>
+  <p style="color:var(--stone);"><strong>你的系统：</strong>滑动窗口中位数检测在位置偏差超过 100km 时立即告警，轨迹断裂可视化。</p>
+</div>
+
+<div class="scene-card">
+  <h4>🛩 场景三：重放攻击 (Replay Attack)</h4>
+  <div class="label">对应攻击类型: 重放攻击</div>
+  <p style="margin-top:3pt;">攻击者录制某航班 30 秒前的报文后重新广播。飞机在高速飞行（约 250m/s），30 秒意味着 7.5 公里位移差。空管系统以过期报文做决策会产生致命误判。</p>
+  <p style="color:var(--stone);"><strong>你的系统：</strong><code>recentMessageCache</code> 在 60 秒窗口内检测完全相同的报文指纹，识别为疑似重放攻击。</p>
+</div>
+
+<div class="scene-card">
+  <h4>🛩 场景四：报文破坏 (Message Corruption)</h4>
+  <div class="label">对应攻击类型: CRC 篡改</div>
+  <p style="margin-top:3pt;">攻击者故意修改报文字段但保留错误校验码。标准接收机会丢弃校验失败的报文——如果攻击者想要的就是让某些报文被丢弃，造成目标飞机在管制员屏幕上"信号丢失"几秒后又出现。这种间歇闪烁可能被误判为设备故障。</p>
+  <p style="color:var(--stone);"><strong>你的系统：</strong>CRC 校验失败立即记录红色告警，让观众看到合法的监视数据如何被污染。</p>
+</div>
+
+<!-- ═══════════════ 三、当前架构的核心缺陷 ═══════════════ -->
+<h2>三、当前架构的核心缺陷：攻击与检测未分离</h2>
+
+<div class="callout-warn">
+<strong>⚠ 评委最可能质疑的点：</strong>你的攻击代码直接在 Java 里改数据库字段，这和真实攻击完全没有关系。攻击方和检测方在同一个进程、同一个对象上操作——这不叫"攻击和检测"，这叫"左手打右手"。
+</div>
+
+<h3>3.1 当前流程 vs 应有流程</h3>
+
+<strong>当前：攻击直接修改内存对象</strong>
+<pre>
+triggerAttack() → victim.setLatitude(xxx) → aircraftRepo.save()
+                                              ↓
+  SecurityCheckService.check() ← 检查同一个被修改的对象
+  （检测器"知道"哪架飞机被攻击了——因为就是同一个 JVM 对象）
+</pre>
+
+<strong>应有：攻击通过报文信道注入</strong>
+<pre>
+正常仿真（SimulationService）→ 生成正常报文 → ┐
+                                              ├→ 报文总线 (adsb_message 表) → SecurityCheckService
+攻击注入（AttackInjector）  → 生成恶意报文 → ┘   （只分析报文，不知道哪些是攻击）
+</pre>
+
+<h3>3.2 逐条对照当前代码的问题</h3>
+<table>
+  <thead><tr><th style="width:35%;">当前实现</th><th style="width:65%;">问题</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><code>triggerAttack()</code> 直接 <code>victim.setLatitude()</code></td>
+      <td>真实攻击者改不了你服务器内存里的 Java 对象</td>
+    </tr>
+    <tr>
+      <td><code>triggerAttack()</code> 直接设 <code>victim.setStatus("异常")</code></td>
+      <td>先射箭再画靶——还没检测就知道哪架飞机"应该"异常</td>
+    </tr>
+    <tr>
+      <td><code>SecurityCheckService</code> 检查同一个 <code>Aircraft</code> 对象</td>
+      <td>攻击方和检测方共享 JVM 内存，完全没有信号传输层</td>
+    </tr>
+    <tr>
+      <td>攻击后手动调用 <code>securityCheckService.check(msg, victim)</code></td>
+      <td>等于告诉检测器"这条是我注入的，你来查一下"</td>
+    </tr>
+    <tr>
+      <td>攻击类型通过 HTTP API 参数显式传入</td>
+      <td>真实世界没有"攻击类型"这个参数——检测器不知道攻击者的意图</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="callout">
+<strong>核心矛盾：</strong>如果我去答辩，评委问我"你的攻击和检测是不是在同一个程序里自娱自乐"，按当前架构我无法反驳。因为确实就是这样的。
+</div>
+
+<!-- ═══════════════ 四、架构改造方案 ═══════════════ -->
+<h2>四、架构改造方案：独立攻击注入通道</h2>
+
+<h3>4.1 改造原则</h3>
+<ol style="font-size:9pt; padding-left:14pt;">
+  <li style="margin-bottom:3pt;"><strong>正常仿真只产生正常报文。</strong>SimulationService 不再设置任何飞机的 status 为异常。</li>
+  <li style="margin-bottom:3pt;"><strong>攻击注入器只往报文流写入恶意报文。</strong>不能直接修改 Aircraft 对象，只能像真实攻击者一样——生成假的 ADS-B hex 字符串。</li>
+  <li style="margin-bottom:3pt;"><strong>安全检测只读报文流。</strong>不知道哪些报文是攻击注入的，只能用算法判断。</li>
+  <li style="margin-bottom:3pt;"><strong>用 source 字段事后对照验证。</strong>报文表中增加 <code>source</code> 字段（NORMAL / INJECTED），检测完成后用此字段计算检出率和误报率，<em>但检测过程中不读取此字段</em>。</li>
+</ol>
+
+<h3>4.2 改造后的架构</h3>
+<div class="arch-diagram">
+┌──────────────────────────────────────────────────────────────┐
+│                    ADS-B 报文总线                              │
+│              (数据库 adsb_message 表)                           │
+│              source 字段: NORMAL | INJECTED                     │
+└──────┬───────────────────────────────┬───────────────────────┘
+       │                               │
+       ▼                               ▼
+┌──────────────────┐          ┌──────────────────┐
+│ SimulationService │          │ AttackInjector   │
+│ (正常仿真)        │          │ (攻击注入)        │
+│                  │          │                  │
+│ · 每 tick 生成   │          │ · 接收攻击指令   │
+│   正常位置报文   │          │ · 构造恶意 hex   │
+│ · 不修改飞机     │          │ · 伪造位置/高度  │
+│   status 字段    │          │   速度/CRC       │
+│ · source=NORMAL  │          │ · source=INJECTED│
+└──────────────────┘          └──────────────────┘
+       │                               │
+       └───────────┬───────────────────┘
+                   │
+                   ▼
+       ┌──────────────────────┐
+       │ SecurityCheckService │
+       │ (安全检测)            │
+       │                      │
+       │ · 只读 adsb_message │
+       │ · 5 种检测算法       │
+       │ · 不读取 source 字段 │
+       │ · 不知道哪些是攻击   │
+       │ · 输出: 告警列表     │
+       └──────────────────────┘
+                   │
+                   ▼
+       ┌──────────────────────┐
+       │   事后对照验证         │
+       │                      │
+       │ 检测告警 ∩ INJECTED  │
+       │ → 检出率 = 命中/注入  │
+       │ 检测告警 ∩ NORMAL    │
+       │ → 误报率 = 误报/正常  │
+       └──────────────────────┘
+</div>
+
+<h3>4.3 改造后可量化的安全指标</h3>
+<table>
+  <thead><tr><th>指标</th><th>计算方式</th><th>答辩价值</th></tr></thead>
+  <tbody>
+    <tr><td><strong>检出率 (Recall)</strong></td><td>INJECTED 报文中被检测告警的比例</td><td>证明检测算法有效</td></tr>
+    <tr><td><strong>误报率 (FPR)</strong></td><td>NORMAL 报文中被误判为异常的比例</td><td>证明检测不干扰正常飞行</td></tr>
+    <tr><td><strong>平均检测延迟</strong></td><td>从攻击注入到告警触发的时间差</td><td>证明系统实时性</td></tr>
+    <tr><td><strong>F1 分数</strong></td><td>检出率与精确率的调和平均</td><td>学术界通用评价标准</td></tr>
+  </tbody>
+</table>
+
+<div class="callout">
+<strong>改造量预估：</strong>新建 AttackInjector 服务 ~100 行 · 重写 triggerAttack ~80 行 · SecurityCheckService 纯报文分析 ~30 行改动 · 前端检出率统计 ~40 行 · 总计约 250 行，一天可完成。
+</div>
+
+<!-- ═══════════════ 五、答辩叙事设计 ═══════════════ -->
+<h2>五、答辩演示叙事设计（三幕结构）</h2>
+
+<div class="scene-card">
+  <h4>🎬 第一幕：正常场景（30 秒）</h4>
+  <p>"这是中国空域，15 架航班正在正常飞行。ADS-B 报文每秒广播，地面站接收并显示在地图上。一切看起来很正常。"</p>
+  <p style="color:var(--stone);">展示地图 + 飞机列表 + 统计大屏，全绿状态。数据可视化显示飞机高度/速度分布。</p>
+</div>
+
+<div class="scene-card">
+  <h4>🎬 第二幕：攻击发生（60 秒）</h4>
+  <p>"现在，攻击者用一台 SDR 设备向空域广播了伪造信号——他篡改了 CCA3124 的位置信息。"</p>
+  <p style="color:var(--stone);">自动演示模式连续触发 5 种攻击 → 地图上飞机轨迹断裂变色 → 告警列表实时滚动 → 状态栏异常计数跳变 → 统计大屏安全态势分下降。</p>
+</div>
+
+<div class="scene-card">
+  <h4>🎬 第三幕：防御与展望（60 秒）</h4>
+  <p>"我们的系统集成了 5 种实时检测算法。在刚才的 50 次攻击注入中，成功检出 47 次，检出率 94%，误报率 4%。所有异常记录完整可追溯。未来将引入区块链存证和身份基加密，从协议层面杜绝此类攻击。"</p>
+  <p style="color:var(--stone);">展示导出报告 → 检出率/误报率统计 → 加密模块架构图 → 结束语。</p>
+</div>
+
+<!-- ═══════════════ 六、改进建议优先级 ═══════════════ -->
+<h2>六、全部改进建议（按优先级排序）</h2>
+
+<h3>🔴 高优先级 —— 直接影响答辩说服力</h3>
+<ul class="priority-list">
+  <li><span class="pri-dot pri-high"></span><strong>1. 重构攻击注入为独立报文通道</strong> — 攻击不再直接修改内存对象，通过报文总线注入恶意 hex。检测服务纯报文分析，不读取攻击标记。实现检出率/误报率量化统计。<span class="tag tag-red">核心改造</span></li>
+  <li><span class="pri-dot pri-high"></span><strong>2. 自动演示模式</strong> — 一键按固定节奏自动触发 5 种攻击，每条间隔 2-3 秒。配合音效或视觉提示。答辩时不需要手动操作，让观众看到完整的攻击→检测→告警闭环。<span class="tag tag-green">小改动大效果</span></li>
+  <li><span class="pri-dot pri-high"></span><strong>3. 攻击轨迹在地图上断裂变色</strong> — 攻击发生后被攻击飞机的前后轨迹断开，颜色从绿色变为红色。观众在地图上能一眼看到异常发生的时刻和位置。<span class="tag tag-green">小改动大效果</span></li>
+</ul>
+
+<h3>🟡 中优先级 —— 增强项目深度</h3>
+<ul class="priority-list">
+  <li><span class="pri-dot pri-mid"></span><strong>4. 统计大屏视图</strong> — 大屏风格页面，包含实时飞机统计、告警趋势折线图、攻击类型分布饼图、最近告警滚动列表、安全态势综合评分（0-100 分）。答辩时直接投屏这个页面做背景。</li>
+  <li><span class="pri-dot pri-mid"></span><strong>5. 报文解析可视化标注</strong> — 把 28 位 hex 用不同颜色标注 DF、ICAO、TC、ALT、CPR-LAT、CPR-LON、PI 各字段，类似 Wireshark 的协议高亮。证明真正理解 ADS-B 协议结构。</li>
+  <li><span class="pri-dot pri-mid"></span><strong>6. 安全报告导出</strong> — 一键将当前告警导出为 CSV 或 HTML 安全审计报告。答辩时说："系统不仅实时检测，还能生成可供空管人员追溯的安全审计报告。"</li>
+</ul>
+
+<h3>🟢 低优先级 —— 锦上添花</h3>
+<ul class="priority-list">
+  <li><span class="pri-dot pri-low"></span><strong>7. WebSocket 实时推送</strong> — 替换当前 3 秒轮询，地图更新更流畅，飞机移动丝滑。</li>
+  <li><span class="pri-dot pri-low"></span><strong>8. 接入真实 ADS-B 数据源</strong> — 从 OpenSky Network 或 ADS-B Exchange 的公开 API 获取真实飞行数据，与仿真数据混合展示，大幅提升项目说服力。</li>
+</ul>
+
+<!-- ═══════════════ 七、关键讨论摘录 ═══════════════ -->
+<h2>七、关键讨论记录</h2>
+
+<table>
+  <thead><tr><th style="width:15%;">议题</th><th style="width:42%;">问题</th><th style="width:43%;">结论</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>模拟攻击的意义</td>
+      <td>我们只是用软件模拟并没有硬件，这样会不会根本无法体现攻击的威胁性和恐怖？</td>
+      <td>仿真验证平台的价值不是"再现物理攻击"而是"提供安全的试验场"。但当前攻击和检测共享内存确实是硬伤，需通过架构改造让攻击走报文通道，体现实战性。</td>
+    </tr>
+    <tr>
+      <td>项目实际作用</td>
+      <td>这个项目有什么实际作用？怎么更好体现出来？</td>
+      <td>定位为"ADS-B 安全验证平台"。答辩时用三幕叙事：正常→攻击→防御。用量化指标（检出率/误报率）替代空口描述。</td>
+    </tr>
+    <tr>
+      <td>真实攻击场景</td>
+      <td>实际攻击场景应该是什么样的？</td>
+      <td>四种场景：幽灵飞机注入、航迹篡改、重放攻击、报文破坏。每种都有真实案例支撑，仿真系统一一对应。</td>
+    </tr>
+    <tr>
+      <td>图标与状态同步</td>
+      <td>图标不好看，安全告警持久化而飞机状态未同步</td>
+      <td>已完成：SVG 飞机图标重设计（光晕、脉冲动画）、清空告警同步重置飞机状态、手动重置飞机状态端点。</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="callout">
+<strong>后续行动建议：</strong>下次开发优先做架构改造（攻击注入独立通道），这是项目的"护城河"——一旦完成，你的系统不再是"左手打右手的 Java 程序"，而是一个真正能用来验证检测算法的安全仿真平台。其次做自动演示模式和大屏统计，直接服务于答辩效果。
+</div>
+
+<div class="footer">
+  <span>ADS-B 安全可信仿真系统 · 灵感与改进思路</span>
+  <span>熊康 · 2026.07.25</span>
+</div>
+
+</body>
+</html>

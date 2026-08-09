@@ -28,6 +28,7 @@ public class SimulationService {
     private final SimulationConfigRepository configRepo;
     private final AdsbDecoderService decoderService;
     private final SecurityCheckService securityCheckService;
+    private final CrcService crcService;
 
     private static final Random RNG = new Random();
 
@@ -44,13 +45,9 @@ public class SimulationService {
     public boolean isRunning() { return running; }
 
     /**
-     * 初始化种子数据：生成 N 架飞机
+     * 初始化种子数据：仅在数据库为空时调用，生成 N 架飞机
      */
     public List<Aircraft> seedAircraft(int count) {
-        // 清理旧数据
-        messageRepo.deleteAll();
-        aircraftRepo.deleteAll();
-
         for (int i = 0; i < count; i++) {
             Aircraft ac = Aircraft.builder()
                     .icao(randomIcao())
@@ -167,9 +164,12 @@ public class SimulationService {
             aircraftRepo.save(ac);
 
             // 生成一条 ADS-B 报文记录
+            String rawHex = generatePositionHex(ac);
+            boolean crcOk = crcService.isValid(rawHex);
+
             AdsbMessage msg = AdsbMessage.builder()
                     .icao(ac.getIcao())
-                    .rawHex(generatePositionHex(ac))
+                    .rawHex(rawHex)
                     .df(17)
                     .tc(11) // 空中位置(气压高度)
                     .messageType("空中位置(气压高度)")
@@ -178,7 +178,7 @@ public class SimulationService {
                     .longitude(ac.getLongitude())
                     .speed(ac.getSpeed())
                     .heading(ac.getHeading())
-                    .crcValid(true)
+                    .crcValid(crcOk)
                     .isEncrypted(false)
                     .receivedAt(now)
                     .build();
@@ -212,7 +212,7 @@ public class SimulationService {
                 victim.setLongitude(oldLon + (RNG.nextDouble() - 0.5) * 5);
                 victim.setStatus("异常");
                 aircraftRepo.save(victim);
-                msg = buildMessage(victim, false);
+                msg = buildMessage(victim);
                 log.warn("🚨 攻击注入: 飞机 {} 位置被篡改 ({},{}) → ({},{})",
                         victim.getIcao(), String.format("%.2f", oldLat), String.format("%.2f", oldLon),
                         String.format("%.2f", victim.getLatitude()), String.format("%.2f", victim.getLongitude()));
@@ -224,7 +224,7 @@ public class SimulationService {
                 victim.setAltitude(Math.max(0, Math.min(60000, victim.getAltitude())));
                 victim.setStatus("异常");
                 aircraftRepo.save(victim);
-                msg = buildMessage(victim, true);
+                msg = buildMessage(victim);
                 log.warn("🚨 攻击注入: 飞机 {} 高度被篡改 {} → {} ft",
                         victim.getIcao(), String.format("%.0f", oldAlt), String.format("%.0f", victim.getAltitude()));
             }
@@ -233,15 +233,19 @@ public class SimulationService {
                 victim.setSpeed(700 + RNG.nextDouble() * 100);
                 victim.setStatus("异常");
                 aircraftRepo.save(victim);
-                msg = buildMessage(victim, true);
+                msg = buildMessage(victim);
                 log.warn("🚨 攻击注入: 飞机 {} 速度被篡改为 {} kt", victim.getIcao(), String.format("%.0f", victim.getSpeed()));
             }
             case "crc" -> {
-                // CRC 校验失败
-                msg = buildMessage(victim, false);
+                // CRC 篡改：生成合法报文后篡改 PI 字段使 CRC 校验失败
+                msg = buildMessage(victim);
                 String hex = msg.getRawHex();
-                // 修改最后 6 位 hex (PI/CRC) 使 CRC 校验失败
-                msg.setRawHex(hex.substring(0, 22) + "FFFFF" + hex.charAt(27));
+                // 修改最后 6 位 PI 为随机值，打破 CRC 校验
+                StringBuilder broken = new StringBuilder(hex);
+                for (int i = 22; i < 28; i++) {
+                    broken.setCharAt(i, "0123456789ABCDEF".charAt(RNG.nextInt(16)));
+                }
+                msg.setRawHex(broken.toString());
                 msg.setCrcValid(false);
                 log.warn("🚨 攻击注入: 飞机 {} CRC 被篡改", victim.getIcao());
             }
@@ -249,12 +253,11 @@ public class SimulationService {
                 // 重放攻击：发送一条和上一条完全相同的报文
                 List<AdsbMessage> recent = messageRepo.findByIcaoOrderByReceivedAtDesc(victim.getIcao());
                 if (!recent.isEmpty()) {
-                    AdsbMessage dup = recent.get(0);
-                    msg = buildMessage(victim, true);
-                    msg.setRawHex(dup.getRawHex());  // 复用相同的 hex
+                    msg = buildMessage(victim);
+                    msg.setRawHex(recent.get(0).getRawHex());  // 复用相同的 hex
                     log.warn("🚨 攻击注入: 飞机 {} 重放攻击", victim.getIcao());
                 } else {
-                    msg = buildMessage(victim, true);
+                    msg = buildMessage(victim);
                 }
             }
             default -> {
@@ -276,10 +279,11 @@ public class SimulationService {
         );
     }
 
-    private AdsbMessage buildMessage(Aircraft ac, boolean crcValid) {
+    private AdsbMessage buildMessage(Aircraft ac) {
+        String rawHex = generatePositionHex(ac);
         return AdsbMessage.builder()
                 .icao(ac.getIcao())
-                .rawHex(generatePositionHex(ac))
+                .rawHex(rawHex)
                 .df(17).tc(11)
                 .messageType("空中位置(气压高度)")
                 .altitude(ac.getAltitude())
@@ -287,7 +291,7 @@ public class SimulationService {
                 .longitude(ac.getLongitude())
                 .speed(ac.getSpeed())
                 .heading(ac.getHeading())
-                .crcValid(crcValid)
+                .crcValid(crcService.isValid(rawHex))
                 .isEncrypted(false)
                 .receivedAt(System.currentTimeMillis())
                 .build();
@@ -354,8 +358,9 @@ public class SimulationService {
 
         sb.append(String.format("%014X", me)); // 14 hex chars
 
-        // PI 字段（简化 CRC）
-        sb.append("000000");
+        // PI 字段：真实 CRC-24 编码
+        String body = sb.toString(); // 22 hex chars (DF+CA+ICAO+ME)
+        sb.append(crcService.generate(body));
 
         return sb.toString().toUpperCase();
     }

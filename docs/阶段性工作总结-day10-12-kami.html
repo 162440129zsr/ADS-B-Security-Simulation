@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>ADS-B 仿真系统 · Day 10-12 工作总结</title>
+<meta name="author" content="熊康">
+<meta name="generator" content="Kami">
+<style>
+  @font-face {
+    font-family: "TsangerJinKai02";
+    src: url("https://cdn.jsdelivr.net/gh/tw93/Kami@main/assets/fonts/TsangerJinKai02-W05.ttf") format("truetype");
+    font-weight: 500; font-style: normal;
+  }
+  @font-face {
+    font-family: "TsangerJinKai02";
+    src: url("https://cdn.jsdelivr.net/gh/tw93/Kami@main/assets/fonts/TsangerJinKai02-W04.ttf") format("truetype");
+    font-weight: 400; font-style: normal;
+  }
+
+  @page { size: A4; margin: 14mm 17mm; background: #f5f4ed; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --parchment: #f5f4ed;
+    --ivory:     #faf9f5;
+    --near-black:#141413;
+    --dark-warm: #3d3d3a;
+    --olive:     #504e49;
+    --stone:     #6b6a64;
+    --brand:     #1B365D;
+    --border:    #e8e6dc;
+    --border-soft:#e5e3d8;
+    --tag-bg:    #E4ECF5;
+    --serif: "TsangerJinKai02", "Source Han Serif SC", Georgia, serif;
+    --sans: var(--serif);
+  }
+
+  html, body { background: var(--parchment); }
+  @media screen {
+    body { max-width: 210mm; margin: 0 auto; padding: 14mm 17mm; }
+  }
+
+  body {
+    color: var(--near-black);
+    font-family: var(--serif);
+    font-size: 9pt;
+    line-height: 1.55;
+    letter-spacing: 0.3pt;
+  }
+
+  .header {
+    border-left: 2.5pt solid var(--brand);
+    border-radius: 1.5pt;
+    padding-left: 8pt;
+    margin-bottom: 10pt;
+    display: flex; align-items: flex-end; justify-content: space-between;
+  }
+  .eyebrow { font-size: 8pt; color: var(--brand); letter-spacing: 1pt; text-transform: uppercase; margin-bottom: 2pt; }
+  h1 { font-family: var(--serif); font-size: 20pt; font-weight: 500; color: var(--near-black); line-height: 1.15; margin-bottom: 3pt; }
+  .subtitle { font-size: 9pt; color: var(--olive); }
+  .meta { font-size: 8pt; color: var(--stone); text-align: right; line-height: 1.4; }
+
+  .metrics {
+    display: flex; gap: 10pt;
+    margin-bottom: 12pt; padding: 2pt 0 4pt 0;
+    border-bottom: 0.3pt dotted var(--border);
+  }
+  .metric { flex: 1; display: flex; align-items: baseline; gap: 3pt; }
+  .metric-value { font-size: 16pt; font-weight: 500; color: var(--brand); line-height: 1; }
+  .metric-label { font-size: 8pt; color: var(--olive); }
+
+  h2 {
+    font-family: var(--serif); font-size: 13pt; font-weight: 500;
+    color: var(--near-black); margin-bottom: 4pt; margin-top: 10pt;
+  }
+  h3 { font-size: 10pt; font-weight: 500; color: var(--dark-warm); margin: 6pt 0 3pt 0; }
+
+  .tag {
+    display: inline-block;
+    background: var(--tag-bg); color: var(--brand);
+    font-size: 8pt; font-weight: 500;
+    padding: 1pt 4pt; border-radius: 3pt;
+  }
+  .tag-green { background: #e8f5e9; color: #2d6a4f; }
+  .tag-red { background: #fce4ec; color: #c62828; }
+  .tag-orange { background: #fff3e0; color: #e65100; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 8pt; margin: 5pt 0; break-inside: avoid; }
+  table th { text-align: left; font-weight: 500; color: var(--dark-warm); padding: 3pt 4pt; border-bottom: 1pt solid var(--border); }
+  table td { padding: 3pt 4pt; border-bottom: 0.3pt solid var(--border-soft); vertical-align: top; line-height: 1.4; }
+
+  .callout {
+    background: transparent;
+    border-left: 1.8pt solid var(--brand);
+    padding: 2pt 0 2pt 10pt; margin: 6pt 0;
+    font-size: 9pt; line-height: 1.5; color: var(--olive);
+    break-inside: avoid;
+  }
+
+  .footer { margin-top: 14pt; padding-top: 4pt; border-top: 0.3pt dotted var(--border); font-size: 8pt; color: var(--stone); display: flex; justify-content: space-between; }
+
+  code {
+    font-family: "JetBrains Mono", "SF Mono", Consolas, monospace;
+    font-size: 7.5pt; background: var(--ivory);
+    padding: 1pt 3pt; border-radius: 2pt; color: var(--dark-warm);
+  }
+
+  pre {
+    background: var(--ivory); font-size: 7.5pt; padding: 6pt 8pt;
+    border-radius: 3pt; margin: 4pt 0; line-height: 1.5;
+    border: 0.3pt solid var(--border-soft); color: var(--dark-warm);
+    font-family: "JetBrains Mono", monospace; overflow-x: auto;
+  }
+
+  .issue-box {
+    background: #fef9f0; border: 0.5pt solid #e8c870;
+    border-radius: 4pt; padding: 6pt 8pt; margin: 6pt 0;
+    font-size: 8.5pt;
+  }
+  .issue-box strong { color: #b8860b; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="title-block">
+    <div class="eyebrow">技术工作总结 · 2026.07.25</div>
+    <h1>ADS-B 安全可信仿真系统<br>Day 10–12 夯实基础 & 踩坑记录</h1>
+    <div class="subtitle">真实 CRC · MySQL 持久化 · 位置检测完善 · 生产构建调试 · 现存问题与后续方向</div>
+  </div>
+  <div class="meta">
+    <strong>熊康</strong><br>
+    2026 年 7 月 25 日<br>
+    南京航空航天大学
+  </div>
+</div>
+
+<div class="metrics">
+  <div class="metric"><div class="metric-value">3</div><div class="metric-label">高优改进完成</div></div>
+  <div class="metric"><div class="metric-value">4</div><div class="metric-label">生产构建问题修复</div></div>
+  <div class="metric"><div class="metric-value">5</div><div class="metric-label">攻击类型全覆盖</div></div>
+  <div class="metric"><div class="metric-value">6</div><div class="metric-label">现存待改进问题</div></div>
+</div>
+
+<!-- ═══════════════ 一、今日完成 ═══════════════ -->
+<h2>一、夯实基础 —— 三项高优改进</h2>
+
+<h3>1.1 真实 CRC-24 生成 <span class="tag tag-green">completed</span></h3>
+<table>
+  <thead><tr><th style="width:25%;">改动</th><th style="width:75%;">细节</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><code>CrcService.java</code> 重写</td>
+      <td>从 <code>long</code>（64 位）改为 <code>BigInteger</code>，正确计算 112 位 ADS-B 报文的 CRC-24 余数。生成多项式 <code>0x1FFF409</code>（对应 ADS-B 标准 <code>0xFFFA0480</code>）</td>
+    </tr>
+    <tr>
+      <td><code>generatePositionHex()</code></td>
+      <td>PI 字段从固定 <code>"000000"</code> 改为 <code>crcService.generate(body)</code></td>
+    </tr>
+    <tr>
+      <td><code>tick()</code></td>
+      <td><code>crcValid</code> 从硬编码 <code>true</code> 改为 <code>crcService.isValid(rawHex)</code></td>
+    </tr>
+    <tr>
+      <td><code>buildMessage()</code></td>
+      <td>去掉 <code>crcValid: boolean</code> 参数，统一自动校验</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>1.2 默认切 MySQL <span class="tag tag-green">completed</span></h3>
+<table>
+  <tr><td style="width:25%;"><code>application.yml</code></td><td>添加 <code>spring.profiles.active: mysql</code>，默认使用 MySQL 持久化。密码配置文件保持 gitignored</td></tr>
+  <tr><td>持久化验证</td><td>重启后端后飞机和报文数据保持，不再丢失。告警记录跨重启保留</td></tr>
+</table>
+
+<h3>1.3 位置跳变检测完善 <span class="tag tag-green">completed</span></h3>
+<table>
+  <tr><td style="width:25%;">原方案</td><td>仅对比相邻两条报文距离</td></tr>
+  <tr><td>新方案</td><td>维护每架飞机最近 5 个位置点的滑动窗口，计算中位数位置，新位置偏离中位数 &gt; 100km 判定为 GPS 欺骗。检测到跳变后清空窗口重新积累</td></tr>
+</table>
+
+<!-- ═══════════════ 二、生产构建调试 ═══════════════ -->
+<h2>二、生产构建踩坑全记录</h2>
+
+<p style="font-size:8.5pt;color:var(--olive);margin-bottom:4pt;">
+从 Vite 开发服务器切换到 Spring Boot 内嵌静态文件部署时，经历了一系列连锁问题：
+</p>
+
+<table>
+  <thead><tr><th style="width:5%;">#</th><th style="width:30%;">问题</th><th style="width:25%;">根因</th><th style="width:40%;">解决方案</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>地图不显示，报 <code>appendChild</code> 错误</td>
+      <td>SVG divIcon 在生产构建中 DOM 操作失败</td>
+      <td>改为 <code>L.circleMarker</code>（Leaflet 内置 SVG 渲染，不操作 DOM）</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>地图仍不显示，OSM 瓦片超时</td>
+      <td><code>tile.openstreetmap.org</code> 在中国被墙</td>
+      <td>换为高德地图瓦片 <code>webrd0{s}.is.autonavi.com</code></td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>SPA 路由刷新 404</td>
+      <td>Spring Boot 不知道 <code>/aircraft</code> 等路径要返回 <code>index.html</code></td>
+      <td>添加 <code>SpaFallbackFilter</code>，非 API/非静态资源请求转发到 <code>/index.html</code></td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>旧 JS 文件积压，浏览器加载过期版本</td>
+      <td><code>mvn package</code>（非 <code>clean</code>）不会清空 <code>target/classes/static/</code>，多次构建的 hash 文件名堆积</td>
+      <td>每次部署前 <code>mvn clean</code> + 清空 <code>src/main/resources/static/</code> + 重新复制 dist</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>首页数据不刷新（攻击后异常数不变）</td>
+      <td>浏览器缓存了 API 响应（GET 请求被浏览器直接返回缓存）</td>
+      <td>Axios 请求拦截器给所有 GET 请求加 <code>_t=Date.now()</code> 时间戳破缓存</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="callout">
+  <strong>关键教训：</strong>Vite 开发模式下一切正常 ≠ 生产构建也正常。三个最隐蔽的差异——① <code>divIcon</code> 的 DOM 创建时序在生产 bundle 中不同；② 浏览器对 GET 请求的缓存策略比开发模式激进得多；③ Maven 不 clean 时旧资源残留导致 jar 中包含多版本 JS 文件。
+</div>
+
+<!-- ═══════════════ 三、攻击系统 ═══════════════ -->
+<h2>三、攻击模拟系统 —— 五种攻击全覆盖</h2>
+<table>
+  <thead><tr><th>攻击类型</th><th>告警等级</th><th>飞机状态</th><th>检测方式</th></tr></thead>
+  <tbody>
+    <tr><td>📍 位置欺骗 (GPS Spoofing)</td><td><span class="tag tag-red">红色</span></td><td>→ 异常</td><td>滑动窗口中位数对比，偏离 &gt; 100km</td></tr>
+    <tr><td>📏 高度篡改</td><td><span class="tag tag-orange">橙色</span></td><td>→ 异常</td><td>相邻报文高度差 &gt; 5000ft</td></tr>
+    <tr><td>⚡ 速度超限</td><td><span class="tag tag-orange">橙色</span></td><td>→ 异常</td><td>速度 &gt; 650kt</td></tr>
+    <tr><td>🔐 CRC 篡改</td><td><span class="tag tag-red">红色</span></td><td>→ 异常</td><td>真实 CRC-24 校验失败</td></tr>
+    <tr><td>🔄 重放攻击</td><td><span class="tag tag-red">红色</span></td><td>→ 异常</td><td>60 秒内相同 hex 报文重复</td></tr>
+  </tbody>
+</table>
+
+<h3>告警管理</h3>
+<p style="font-size:8.5pt;color:var(--olive);">
+新增「清空全部告警」按钮（确认弹窗 + <code>DELETE /api/alerts</code>），防止告警堆积。同时清除安全检测的去重缓存，允许同类告警再次触发。
+</p>
+
+<!-- ═══════════════ 四、飞机状态持久化 ═══════════════ -->
+<h2>四、状态持久化修复</h2>
+<table>
+  <tr><td style="width:25%;">原问题</td><td><code>DataInitRunner</code> 每次启动调用 <code>seedAircraft()</code>，内部 <code>deleteAll()</code> 删光所有飞机重建。攻击后标记的「异常」状态重启即丢失</td></tr>
+  <tr><td>修复</td><td><code>DataInitRunner</code> 仅在 <code>aircraftRepo.count() == 0</code> 时种子数据；<code>seedAircraft()</code> 移除 <code>deleteAll()</code>。攻击后的异常状态跨重启保持</td></tr>
+</table>
+
+<!-- ═══════════════ 五、现存问题 ═══════════════ -->
+<h2>五、现存问题 & 后续改进方向</h2>
+
+<h3>5.1 飞机状态管理不便</h3>
+<div class="issue-box">
+<strong>现状：</strong>目前修改飞机状态的唯一途径是通过攻击模拟——触发安全检测 → 自动标记为异常。没有手动设置飞机状态的方式，调试时需要反复点击攻击按钮，且攻击目标是随机的，无法精确控制哪架飞机变异常。<br><br>
+<strong>建议方案：</strong>
+<ul style="margin-left:12pt;">
+  <li>在飞机列表页每行增加一个状态切换开关（正常 ⇄ 异常），直接调 API 修改</li>
+  <li>或增加 <code>PUT /api/aircraft/{icao}/status</code> 接口，前端加下拉选择</li>
+  <li>在仿真控制页增加「一键异常」按钮——随机选 N 架的批量操作</li>
+</ul>
+</div>
+
+<h3>5.2 系统功能偏少</h3>
+<div class="issue-box">
+<strong>现状：</strong>系统目前本质上是一个「ADS-B 飞机模拟器 + 安全告警检测器」。仿真控制只能启停和调飞机数量，缺乏对仿真参数的深度控制。安全检测只有 5 条规则。数据可视化只有一张饼图。<br><br>
+<strong>建议方向：</strong>
+<table>
+  <thead><tr><th style="width:22%;">模块</th><th>可增加功能</th></tr></thead>
+  <tbody>
+    <tr><td>仿真控制</td><td>手动设置飞行航线（起降点+航路点）、调整仿真速度（1x/10x/100x）、暂停/单步执行、选择特定空域（北京/上海/广州终端区）</td></tr>
+    <tr><td>数据可视化</td><td>实时高度-速度散点图、报文类型分布柱状图、告警时间线、单架飞机的航迹回放</td></tr>
+    <tr><td>安全检测</td><td>航路偏离检测、ADS-B 协议字段一致性校验（如高度源与 TC 匹配）、时间戳异常检测</td></tr>
+    <tr><td>报文解析</td><td>支持拖拽批量导入 hex 文件、解析结果导出 CSV、报文字段的可视化标注</td></tr>
+    <tr><td>加密模块</td><td>按项目计划第三周集成身份基广播加密，在报文上加解密标记</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>5.3 菜单栏单调</h3>
+<div class="issue-box">
+<strong>现状：</strong>左侧导航只有 6 个图标 + 文字菜单项，纯功能罗列，没有层次感和品牌识别度。<br><br>
+<strong>建议方案：</strong>
+<ul style="margin-left:12pt;">
+  <li>顶部增加系统 Logo 和项目名称（带副标题）</li>
+  <li>菜单分组：<strong>监控</strong>（首页、飞行器列表、数据可视化）、<strong>分析</strong>（报文解析）、<strong>安全</strong>（告警、检测规则配置）、<strong>管理</strong>（仿真控制、系统设置）</li>
+  <li>告警菜单项加未处理数量的红色角标</li>
+  <li>仿真运行状态指示灯（绿色脉冲/红色停止）在菜单底部常驻</li>
+  <li>配色方案优化——当前纯暗色，可加入 ADS-B 航空主题元素（雷达扫描效果、高度表风格）</li>
+</ul>
+</div>
+
+<h3>5.4 仿真控制过于简单</h3>
+<div class="issue-box">
+<strong>现状：</strong>仿真只有一个「启动/停止」按钮和一个飞机数量滑块。启动后飞机在随机位置以随机航向飞行，无法干预。<br><br>
+<strong>建议方案：</strong>
+<ul style="margin-left:12pt;">
+  <li><strong>航线模式：</strong>定义几条典型航线（如北京→上海、广州→成都），飞机沿航线飞行而非纯随机漂移</li>
+  <li><strong>速度控制：</strong>仿真倍速滑块（1x 实时 / 10x 快进 / 100x 压力测试）</li>
+  <li><strong>密度控制：</strong>按空域密度分级（稀疏 5 架 / 正常 15 架 / 繁忙 50 架）</li>
+  <li><strong>攻击计划：</strong>编排攻击序列（每 30 秒随机攻击一架、集中攻击某一 ICAO 等），而非手动逐次点击</li>
+</ul>
+</div>
+
+<!-- ═══════════════ 六、技术架构 ═══════════════ -->
+<h2>六、当前技术架构总览</h2>
+<pre>
+http://127.0.0.1:8080 （Spring Boot 内嵌静态文件，无需 Vite）
+│
+├── /                      → Vue 3 SPA (index.html)
+├── /api/stats             → 15 架飞机 · MySQL 持久化
+├── /api/simulation/attack → 5 种攻击类型
+├── /api/alerts            → 告警 CRUD + 清空
+├── /api/adsb/parse        → ADS-B 协议解码
+│
+后端: Spring Boot 3.3 + Java 17 + JPA + MySQL 8.0
+前端: Vue 3 + Element Plus + Leaflet（高德瓦片）+ ECharts
+协议: DO-260B DF17 · CRC-24 (0xFFFA0480) · CPR 奇偶帧解码
+</pre>
+
+<div class="callout">
+  <strong>下一步优先事项：</strong>
+  ① 飞机状态手动管理（调试刚需）→ ② 仿真控制增强（航线/倍速）→ ③ 菜单栏重新设计（分组+状态指示）→ ④ 数据可视化增加图表。这四项能显著提升系统的「可演示性」和「可调试性」。
+</div>
+
+<div class="footer">
+  <span>内部 · 南京航空航天大学 · 面向飞行器监视的安全可信ADS-B仿真系统</span>
+  <span>2026.07.25 · Day 10-12 总结</span>
+</div>
+
+</body>
+</html>

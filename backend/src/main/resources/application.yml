@@ -5,7 +5,12 @@ spring:
   application:
     name: adsb-simulation
 
-  # ====== 数据源配置 ======
+  # ====== 默认使用 MySQL（持久化） ======
+  # 临时切回 H2（内存库）: --spring.profiles.active=default
+  profiles:
+    active: mysql
+
+  # ====== H2 数据源（仅 default profile 使用） ======
   # 默认使用 H2 内存数据库（无需安装 MySQL 即可开发）
   # 需要切换 MySQL 时，激活 mysql profile: --spring.profiles.active=mysql
   datasource:

@@ -1,6 +1,7 @@
 # ====== 后端 ======
 backend/target/
 backend/src/main/resources/application-mysql.yml
+backend/src/main/resources/static/
 
 # ====== 前端 ======
 frontend/node_modules/

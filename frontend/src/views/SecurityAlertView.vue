@@ -1,6 +1,11 @@
 <template>
   <div style="padding:16px;height:100%;overflow-y:auto;">
-    <h2 style="color:#e0e0e0;margin-bottom:12px;">安全告警</h2>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <h2 style="color:#e0e0e0;margin:0;">安全告警</h2>
+      <el-button type="danger" size="small" @click="doClear" :loading="clearing" plain>
+        🗑 清空全部告警
+      </el-button>
+    </div>
     <div style="display:flex;gap:12px;margin-bottom:12px;">
       <div v-for="c in counts" :key="c.label"
         style="flex:1;text-align:center;padding:12px;background:#16213e;border-radius:6px;border:1px solid #0f3460;">
@@ -27,9 +32,11 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { fetchAlerts } from '@/api'
+import { fetchAlerts, clearAlerts } from '@/api'
+import { ElMessageBox } from 'element-plus'
 
 const alerts = ref<any[]>([])
+const clearing = ref(false)
 const counts = ref<{label:string;value:number;color:string}[]>([])
 
 function levelColor(l: string) { return l==='红色'?'#e94560':l==='橙色'?'#f0a500':'#f0c040' }
@@ -42,6 +49,16 @@ async function load() {
     { label: '黄色', value: alerts.value.filter(a=>a.alertLevel==='黄色').length, color: '#f0c040' },
     { label: '总计', value: alerts.value.length, color: '#0f9' }
   ]
+}
+
+async function doClear() {
+  try {
+    await ElMessageBox.confirm('确定清空所有告警记录？此操作不可恢复。', '确认', { type: 'warning' })
+    clearing.value = true
+    await clearAlerts()
+    load()
+  } catch (_) { /* 取消 */ }
+  clearing.value = false
 }
 
 onMounted(() => { load(); setInterval(load, 3000) })

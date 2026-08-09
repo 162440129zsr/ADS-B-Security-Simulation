@@ -123,11 +123,42 @@ public class AircraftController {
         if (alert != null) {
             alert.setIsResolved(true);
             alertRepo.save(alert);
-            // 清除去重缓存，允许同类告警再次触发
             securityCheckService.clearDedupCache(alert.getIcao());
             return Map.of("success", true, "id", id);
         }
         return Map.of("success", false, "message", "告警不存在");
+    }
+
+    @DeleteMapping("/alerts")
+    public Map<String, Object> clearAlerts() {
+        long count = alertRepo.count();
+        alertRepo.deleteAll();
+        // 清除所有去重缓存
+        securityCheckService.clearAllDedupCache();
+        // 同步重置所有飞机状态为正常
+        int resetCount = 0;
+        for (Aircraft ac : aircraftRepo.findAll()) {
+            if (!"正常".equals(ac.getStatus())) {
+                ac.setStatus("正常");
+                aircraftRepo.save(ac);
+                resetCount++;
+            }
+        }
+        return Map.of("success", true, "deleted", count, "aircraftReset", resetCount);
+    }
+
+    /** 手动设置飞行器状态（调试用） */
+    @PutMapping("/aircraft/{icao}/status")
+    public Map<String, Object> updateAircraftStatus(@PathVariable String icao,
+                                                     @RequestBody Map<String, Object> body) {
+        Aircraft ac = aircraftRepo.findByIcao(icao).orElse(null);
+        if (ac == null) return Map.of("success", false, "message", "飞行器不存在");
+        String newStatus = body.containsKey("status") ? (String) body.get("status") : "正常";
+        ac.setStatus(newStatus);
+        aircraftRepo.save(ac);
+        // 重置该飞机的告警去重缓存
+        securityCheckService.clearDedupCache(icao);
+        return Map.of("success", true, "icao", icao, "status", newStatus);
     }
 
     // ====== 统计 ======

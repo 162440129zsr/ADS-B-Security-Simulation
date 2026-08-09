@@ -8,6 +8,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayDeque;
+import java.util.Arrays;
+import java.util.Deque;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -25,7 +28,11 @@ public class SecurityCheckService {
     private final AircraftRepository aircraftRepo;
     private final AdsbMessageRepository messageRepo;
 
-    // 缓存每架飞机的上一条报文，用于位置跳变/高度突变检测
+    // 滑动窗口：每架飞机最近 N 个位置点，用于位置跳变中位数检测
+    private final Map<String, Deque<double[]>> positionWindows = new ConcurrentHashMap<>();
+    private static final int WINDOW_SIZE = 5;
+
+    // 缓存上一条报文（保留用于高度突变检测）
     private final Map<String, AdsbMessage> lastMessageCache = new ConcurrentHashMap<>();
 
     // 缓存最近报文 hash，用于重放攻击检测
@@ -53,6 +60,7 @@ public class SecurityCheckService {
         if (msg.getCrcValid() != null && !msg.getCrcValid()) {
             createAlert(icao, "CRC校验失败", "红色",
                     "报文 " + msg.getRawHex() + " CRC校验未通过，数据可能已被篡改", msg.getRawHex());
+            updateAircraftStatus(aircraft, "异常");
         }
 
         // 2. 速度超限
@@ -60,6 +68,7 @@ public class SecurityCheckService {
             createAlert(icao, "速度超限", "橙色",
                     String.format("飞行器 %s 速度 %.0f kt，超过最大限制 %.0f kt", icao, msg.getSpeed(), MAX_SPEED_KT),
                     msg.getRawHex());
+            updateAircraftStatus(aircraft, "异常");
         }
 
         // 3. 高度异常（绝对高度超出合理范围）
@@ -67,29 +76,41 @@ public class SecurityCheckService {
             createAlert(icao, "高度异常", "橙色",
                     String.format("飞行器 %s 高度 %.0f ft，超出民航飞行包线", icao, msg.getAltitude()),
                     msg.getRawHex());
+            updateAircraftStatus(aircraft, "异常");
         }
 
-        // 4. 位置跳变 & 高度突变（需要上一条报文对比）
+        // 4. 位置跳变（滑动窗口中位数检测）& 高度突变
+        if (msg.getLatitude() != null && msg.getLongitude() != null) {
+            // === 位置跳变：滑动窗口中位数检测 ===
+            Deque<double[]> window = positionWindows.computeIfAbsent(icao, k -> new ArrayDeque<>());
+            window.addLast(new double[]{msg.getLatitude(), msg.getLongitude()});
+            if (window.size() > WINDOW_SIZE) window.removeFirst();
+
+            if (window.size() >= 3) {
+                // 计算窗口中位位置
+                double[] lats = window.stream().mapToDouble(p -> p[0]).sorted().toArray();
+                double[] lons = window.stream().mapToDouble(p -> p[1]).sorted().toArray();
+                double medianLat = lats[lats.length / 2];
+                double medianLon = lons[lons.length / 2];
+
+                double dist = haversineDistance(medianLat, medianLon, msg.getLatitude(), msg.getLongitude());
+                if (dist > MAX_DISTANCE_KM) {
+                    createAlert(icao, "位置异常跳变", "红色",
+                            String.format("飞行器 %s 偏离滑动窗口中位数 %.1f km，可能遭遇GPS欺骗",
+                                    icao, dist),
+                            msg.getRawHex());
+                    updateAircraftStatus(aircraft, "异常");
+                    // 清除异常窗口，重新开始积累
+                    window.clear();
+                }
+            }
+        }
+
+        // === 高度突变：相邻报文对比 ===
         AdsbMessage last = lastMessageCache.get(icao);
         if (last != null && last.getReceivedAt() != null && msg.getReceivedAt() != null) {
             long dtMs = msg.getReceivedAt() - last.getReceivedAt();
-            if (dtMs > 0 && dtMs < 30_000) { // 30秒内的两条报文
-                // 位置跳变
-                if (msg.getLatitude() != null && msg.getLongitude() != null
-                        && last.getLatitude() != null && last.getLongitude() != null) {
-                    double dist = haversineDistance(
-                            last.getLatitude(), last.getLongitude(),
-                            msg.getLatitude(), msg.getLongitude());
-                    if (dist > MAX_DISTANCE_KM) {
-                        createAlert(icao, "位置异常跳变", "红色",
-                                String.format("飞行器 %s 在 %.1f 秒内位移 %.1f km，可能遭遇GPS欺骗",
-                                        icao, dtMs / 1000.0, dist),
-                                msg.getRawHex());
-                        // 更新飞机状态为异常
-                        updateAircraftStatus(aircraft, "异常");
-                    }
-                }
-                // 高度突变
+            if (dtMs > 0 && dtMs < 30_000) {
                 if (msg.getAltitude() != null && last.getAltitude() != null) {
                     double altChange = Math.abs(msg.getAltitude() - last.getAltitude());
                     if (altChange > MAX_ALT_CHANGE_FT) {
@@ -112,6 +133,7 @@ public class SecurityCheckService {
                 createAlert(icao, "疑似重放攻击", "红色",
                         "飞行器 " + icao + " 短时间内收到完全相同的报文: " + msg.getRawHex(),
                         msg.getRawHex());
+                updateAircraftStatus(aircraft, "异常");
             }
             recentMessageCache.put(key, now);
         }
@@ -142,6 +164,13 @@ public class SecurityCheckService {
      */
     public void clearDedupCache(String icao) {
         activeAlertTypes.removeIf(k -> k.startsWith(icao + ":"));
+    }
+
+    /**
+     * 清除所有去重缓存（清空告警时调用）
+     */
+    public void clearAllDedupCache() {
+        activeAlertTypes.clear();
     }
 
     private void createAlert(String icao, String type, String level, String desc, String rawMsg) {
