@@ -124,6 +124,7 @@ let rings: L.Circle[] = []
 let ringLabels: L.Marker[] = []
 let vectorLines: Record<string, L.Polyline> = {}
 let rangePts: [number, number][] = []
+let rangeIcaos: (string | null)[] = []
 let rangeLine: L.Polyline | null = null
 let rangeMarks: L.CircleMarker[] = []
 
@@ -213,20 +214,37 @@ function sealSegment(icao: string, seg: [number, number][]) {
 function toggleRanging() {
   ranging.value = !ranging.value
   rangePts = []
+  rangeIcaos = []
   rangeDist.value = ''
   if (rangeLine) { map.removeLayer(rangeLine); rangeLine = null }
   rangeMarks.forEach(m => map.removeLayer(m)); rangeMarks = []
 }
 function onMapClick(e: L.LeafletMouseEvent) {
   if (!ranging.value) return
-  rangePts.push([e.latlng.lat, e.latlng.lng])
-  rangeMarks.push(L.circleMarker(e.latlng, { radius: 5, color: '#f0c040', weight: 2 }).addTo(map))
+  // 尝试吸附到最近的飞机（目标测距）：点击位置与飞机图标像素距离 < 16px 时吸附
+  let target: [number, number] = [e.latlng.lat, e.latlng.lng]
+  let snappedIcao: string | null = null
+  const clickPx = map.latLngToContainerPoint(e.latlng)
+  let bestDist = 16
+  for (const icao of Object.keys(markers)) {
+    const px = map.latLngToContainerPoint(markers[icao]!.getLatLng())
+    const d = Math.hypot(px.x - clickPx.x, px.y - clickPx.y)
+    if (d < bestDist) { bestDist = d; snappedIcao = icao; target = [markers[icao]!.getLatLng().lat, markers[icao]!.getLatLng().lng] }
+  }
+
+  rangePts.push(target)
+  rangeIcaos.push(snappedIcao)
+  rangeMarks.push(L.circleMarker(target, { radius: 5, color: snappedIcao ? '#0f9' : '#f0c040', weight: 2 }).addTo(map))
+
   if (rangePts.length === 2) {
     const d = distKm(rangePts[0]!, rangePts[1]!)
-    rangeDist.value = `两点距离：${d.toFixed(1)} km`
+    const a = rangeIcaos[0] ? `飞机 ${rangeIcaos[0]}` : '地图点'
+    const b = rangeIcaos[1] ? `飞机 ${rangeIcaos[1]}` : '地图点'
+    rangeDist.value = `${a} → ${b}：${d.toFixed(1)} km`
     if (rangeLine) map.removeLayer(rangeLine)
     rangeLine = L.polyline(rangePts, { color: '#f0c040', weight: 2 }).addTo(map)
     rangePts = []
+    rangeIcaos = []
   }
 }
 
