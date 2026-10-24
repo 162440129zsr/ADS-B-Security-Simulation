@@ -129,10 +129,10 @@ let rangeLine: L.Polyline | null = null
 let rangeMarks: L.CircleMarker[] = []
 
 // ====== 飞机 SVG 图标（随航向旋转 + 发光效果） ======
-function planeIcon(heading: number, status: string) {
+function planeIcon(heading: number, status: string, source?: string) {
   const abnormal = status === '异常'
-  const mainColor = abnormal ? '#ff4757' : '#00e5a0'
-  const glowColor = abnormal ? '#ff4757' : '#00e5a0'
+  const mainColor = abnormal ? '#ff4757' : source === 'REAL' ? '#4da3ff' : '#00e5a0'
+  const glowColor = mainColor
   const h = heading || 0
   const size = 36
 
@@ -179,13 +179,13 @@ function planeIcon(heading: number, status: string) {
   })
 }
 
-function createPlaneMarker(ll: [number, number], heading: number, status: string) {
-  return L.marker(ll, { icon: planeIcon(heading, status) }).addTo(map)
+function createPlaneMarker(ll: [number, number], heading: number, status: string, source?: string) {
+  return L.marker(ll, { icon: planeIcon(heading, status, source) }).addTo(map)
 }
 
-function updatePlaneMarker(icao: string, ll: [number, number], heading: number, status: string) {
+function updatePlaneMarker(icao: string, ll: [number, number], heading: number, status: string, source?: string) {
   markers[icao]!.setLatLng(ll)
-  markers[icao]!.setIcon(planeIcon(heading, status))
+  markers[icao]!.setIcon(planeIcon(heading, status, source))
 }
 
 // ====== 格式化 ======
@@ -375,11 +375,11 @@ async function refresh() {
 
       // 标记
       if (markers[ac.icao]) {
-        updatePlaneMarker(ac.icao, ll, ac.heading, status)
+        updatePlaneMarker(ac.icao, ll, ac.heading, status, ac.source)
       } else {
-        const m = createPlaneMarker(ll, ac.heading, status)
+        const m = createPlaneMarker(ll, ac.heading, status, ac.source)
         markers[ac.icao] = m
-        m.bindPopup(`<b>${ac.icao}</b><br>${ac.callsign||''}<br>${ac.altitude?.toFixed(0)}ft · ${ac.speed?.toFixed(0)}kt`)
+        m.bindPopup(`<b>${ac.icao}</b><br>${ac.callsign||''}<br>${ac.altitude?.toFixed(0)}ft · ${ac.speed?.toFixed(0)}kt${ac.source==='REAL'?' · 真实':''}`)
         m.on('click', () => selectPlane(ac))
       }
 

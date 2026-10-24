@@ -14,5 +14,11 @@ public interface AircraftRepository extends JpaRepository<Aircraft, Long> {
 
     List<Aircraft> findByStatus(String status);
 
+    List<Aircraft> findBySource(String source);
+
+    long countBySource(String source);
+
+    void deleteBySource(String source);
+
     boolean existsByIcao(String icao);
 }

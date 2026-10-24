@@ -55,6 +55,11 @@ public class Aircraft {
     @Builder.Default
     private String status = "正常";
 
+    /** 数据来源：SIMULATION（仿真） / REAL（真实 ADS-B 数据源） */
+    @Column(length = 12)
+    @Builder.Default
+    private String source = "SIMULATION";
+
     /** 最后更新时间 */
     private LocalDateTime lastSeenAt;
 

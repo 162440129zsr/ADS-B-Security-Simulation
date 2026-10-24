@@ -71,7 +71,7 @@ public class SimulationService {
      * 启动仿真
      */
     public void start(int aircraftCount, int intervalMs) {
-        if (aircraftRepo.count() == 0) {
+        if (aircraftRepo.countBySource("SIMULATION") == 0) {
             seedAircraft(aircraftCount);
         }
         running = true;
@@ -102,7 +102,7 @@ public class SimulationService {
 
     /** 运行时调整飞机数量 */
     public void setAircraftCount(int count) {
-        int current = (int) aircraftRepo.count();
+        int current = (int) aircraftRepo.countBySource("SIMULATION");
         if (count > current) {
             int add = count - current;
             for (int i = 0; i < add; i++) {
@@ -118,7 +118,7 @@ public class SimulationService {
                 aircraftRepo.save(ac);
             }
         } else if (count < current) {
-            List<Aircraft> all = aircraftRepo.findAll();
+            List<Aircraft> all = aircraftRepo.findBySource("SIMULATION");
             for (int i = current - 1; i >= count; i--) {
                 aircraftRepo.delete(all.get(i));
             }
@@ -130,7 +130,7 @@ public class SimulationService {
     public SimulationConfig getConfig() {
         List<SimulationConfig> configs = configRepo.findAll();
         return configs.isEmpty() ? SimulationConfig.builder()
-                .aircraftCount((int) aircraftRepo.count())
+                .aircraftCount((int) aircraftRepo.countBySource("SIMULATION"))
                 .messageIntervalMs(1000).isRunning(running).build()
                 : configs.get(0);
     }
@@ -142,7 +142,7 @@ public class SimulationService {
     public void tick() {
         if (!running) return;
 
-        List<Aircraft> aircraftList = aircraftRepo.findAll();
+        List<Aircraft> aircraftList = aircraftRepo.findBySource("SIMULATION");
         for (Aircraft ac : aircraftList) {
             // Haversine 位移（每 tick 模拟 30 秒飞行）
             double[] newPos = updatePosition(

@@ -34,6 +34,10 @@ export const fetchStationStatus = () => api.get('/station/status').then(r => r.d
 export const fetchBeacon = () => api.get('/beacon').then(r => r.data)
 export const setBeaconSignal = (strength: number) =>
   api.post('/beacon/signal', { strength }).then(r => r.data)
+
+// ====== 真实 ADS-B 数据源 ======
+export const importRealData = () => api.post('/realtime/import').then(r => r.data)
+export const clearRealData = () => api.delete('/realtime').then(r => r.data)
 export const resolveAlert = (id: number) => api.put(`/alerts/${id}/resolve`).then(r => r.data)
 export const clearAlerts = () => api.delete('/alerts').then(r => r.data)
 export const updateAircraftStatus = (icao: string, status: string) =>

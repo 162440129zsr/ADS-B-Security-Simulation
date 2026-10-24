@@ -14,3 +14,6 @@ frontend/dist/
 .DS_Store
 Thumbs.db
 *.log
+
+# ====== 数据集 / 大数据文件 ======
+data/

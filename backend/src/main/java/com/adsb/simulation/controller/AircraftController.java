@@ -7,6 +7,7 @@ import com.adsb.simulation.repository.*;
 import com.adsb.simulation.service.SecurityCheckService;
 import com.adsb.simulation.service.SimulationService;
 import com.adsb.simulation.service.AttackInjector;
+import com.adsb.simulation.service.RealDataService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,6 +24,7 @@ public class AircraftController {
     private final SimulationService simulationService;
     private final SecurityCheckService securityCheckService;
     private final AttackInjector attackInjector;
+    private final RealDataService realDataService;
 
     // ====== 飞行器 ======
 
@@ -50,6 +52,8 @@ public class AircraftController {
             m.put("speed", ac.getSpeed());
             m.put("heading", ac.getHeading());
             m.put("status", ac.getStatus());
+            m.put("source", ac.getSource());
+            m.put("category", ac.getCategory());
             m.put("lastSeenAt", ac.getLastSeenAt());
             list.add(m);
         }
@@ -182,5 +186,19 @@ public class AircraftController {
     @GetMapping("/stats/detection")
     public Map<String, Object> detectionMetrics() {
         return securityCheckService.getDetectionMetrics();
+    }
+
+    // ====== 真实 ADS-B 数据源 ======
+
+    /** 从 OpenSky 导入真实航班 */
+    @PostMapping("/realtime/import")
+    public Map<String, Object> importRealData() {
+        return realDataService.importRealAircraft();
+    }
+
+    /** 清除所有真实航班 */
+    @DeleteMapping("/realtime")
+    public Map<String, Object> clearRealData() {
+        return realDataService.clearRealAircraft();
     }
 }

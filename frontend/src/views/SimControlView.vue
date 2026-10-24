@@ -57,6 +57,19 @@
       </div>
     </div>
 
+    <!-- 真实 ADS-B 数据源 -->
+    <h2 style="color:#4da3ff;margin:16px 0 8px;">🌐 真实 ADS-B 数据源</h2>
+    <p style="font-size:11px;color:#8b949e;margin-bottom:8px;">
+      从 OpenSky Network 拉取真实航班（已解码的 ICAO/呼号/位置/高度/速度），接入本系统地图与检测链路
+    </p>
+    <el-card class="card">
+      <div style="display:flex;gap:8px;">
+        <el-button type="primary" plain @click="doImportReal" :loading="importingReal">📥 导入真实航班</el-button>
+        <el-button type="danger" plain @click="doClearReal" :loading="importingReal">🗑 清除真实航班</el-button>
+      </div>
+      <div v-if="realMsg" style="margin-top:8px;font-size:12px;color:#c9d1d9;">{{ realMsg }}</div>
+    </el-card>
+
     <!-- 检测效果指标 -->
     <h2 style="color:#0f9;margin:16px 0 8px;">📈 检测效果量化指标</h2>
     <el-card class="card">
@@ -88,7 +101,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import { fetchSimStatus, startSim, stopSim, updateConfig, triggerAttack, clearAlerts, fetchDetectionMetrics } from '@/api'
+import { fetchSimStatus, startSim, stopSim, updateConfig, triggerAttack, clearAlerts, fetchDetectionMetrics, importRealData, clearRealData } from '@/api'
 
 const running = ref(false)
 const count = ref(0)
@@ -99,6 +112,8 @@ const autoDemoing = ref(false)
 const attackResults = ref<any[]>([])
 const demoLog = ref<string[]>([])
 const metrics = ref<any>({})
+const importingReal = ref(false)
+const realMsg = ref('')
 
 const attackLabels: Record<string, string> = {
   position: '位置欺骗', altitude: '高度篡改', speed: '速度超限',
@@ -163,6 +178,28 @@ async function autoDemo() {
   await loadMetrics()
   await load()
   autoDemoing.value = false
+}
+
+async function doImportReal() {
+  importingReal.value = true
+  realMsg.value = ''
+  try {
+    const r = await importRealData()
+    realMsg.value = r.success ? `✅ 已导入 ${r.imported} 架真实航班（地图上蓝色显示）` : `❌ ${r.message || '导入失败'}`
+  } catch (_) { realMsg.value = '❌ 导入失败，请检查网络' }
+  importingReal.value = false
+  load()
+}
+
+async function doClearReal() {
+  importingReal.value = true
+  realMsg.value = ''
+  try {
+    const r = await clearRealData()
+    realMsg.value = `🗑 已清除 ${r.deleted} 架真实航班`
+  } catch (_) { realMsg.value = '❌ 清除失败' }
+  importingReal.value = false
+  load()
 }
 
 onMounted(() => { load(); loadMetrics(); timer = window.setInterval(load, 2000) })
