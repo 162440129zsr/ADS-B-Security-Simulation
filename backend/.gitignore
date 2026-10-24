@@ -22,6 +22,9 @@ Thumbs.db
 *.log
 logs/
 
+# H2 文件数据库
+data/
+
 # Spring Boot
 !src/main/resources/
 src/main/resources/application-mysql.yml
