@@ -88,7 +88,8 @@ public class AircraftController {
     @GetMapping("/simulation/status")
     public Map<String, Object> simulationStatus() {
         return Map.of("running", simulationService.isRunning(),
-                "aircraftCount", aircraftRepo.count(),
+                "aircraftCount", aircraftRepo.countBySource("SIMULATION"),
+                "realAircraftCount", aircraftRepo.countBySource("REAL"),
                 "messageCount", messageRepo.count());
     }
 
@@ -99,7 +100,7 @@ public class AircraftController {
             int count = ((Number) body.get("aircraftCount")).intValue();
             simulationService.setAircraftCount(count);
         }
-        return Map.of("success", true, "aircraftCount", aircraftRepo.count());
+        return Map.of("success", true, "aircraftCount", aircraftRepo.countBySource("SIMULATION"));
     }
 
     /** 攻击模拟：通过独立注入通道写入恶意报文（source=INJECTED），触发纯报文检测 */

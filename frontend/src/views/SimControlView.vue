@@ -6,7 +6,7 @@
       <p class="status-line">
         状态：<b :style="{color: running?'#0f9':'#e94560'}">{{ running ? '🟢 运行中' : '🔴 已停止' }}</b>
       </p>
-      <p class="info">飞机数量：{{ count }} ｜ 报文总数：{{ messages }}</p>
+      <p class="info">仿真飞机：{{ count }} ｜ 真实航班：{{ realCount }} ｜ 报文总数：{{ messages }}</p>
     </el-card>
 
     <el-button :type="running?'danger':'success'" size="large" @click="toggle" style="width:100%;margin-bottom:12px;">
@@ -14,8 +14,8 @@
     </el-button>
 
     <el-card class="card" style="margin-bottom:16px;">
-      <p style="color:#e0e0e0;margin-bottom:8px;">飞机数量：{{ aircraftCount }}</p>
-      <el-slider v-model="aircraftCount" :min="1" :max="50" :step="1" @change="applyCount"/>
+      <p style="color:#e0e0e0;margin-bottom:8px;">仿真飞机数量：{{ aircraftCount }}（上限 500，接近真实地面站 600 批/秒处理能力）</p>
+      <el-slider v-model="aircraftCount" :min="1" :max="500" :step="5" @change="applyCount"/>
       <el-button size="small" @click="applyCount" style="margin-top:8px;">应用</el-button>
     </el-card>
 
@@ -105,6 +105,7 @@ import { fetchSimStatus, startSim, stopSim, updateConfig, triggerAttack, clearAl
 
 const running = ref(false)
 const count = ref(0)
+const realCount = ref(0)
 const messages = ref(0)
 const aircraftCount = ref(15)
 const attacking = ref(false)
@@ -129,6 +130,7 @@ async function load() {
   try {
     const s = await fetchSimStatus()
     running.value = s.running; count.value = s.aircraftCount; messages.value = s.messageCount
+    realCount.value = s.realAircraftCount ?? 0
     aircraftCount.value = s.aircraftCount
   } catch (_) { /* */ }
 }
