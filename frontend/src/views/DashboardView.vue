@@ -120,6 +120,7 @@ const filterCallsign = ref('')
 
 const STATION: [number, number] = [32, 108]   // 地面站/监控终端位置（距离环+距离过滤中心）
 let rings: L.Circle[] = []
+let ringLabels: L.Marker[] = []
 let vectorLines: Record<string, L.Polyline> = {}
 let rangePts: [number, number][] = []
 let rangeLine: L.Polyline | null = null
@@ -236,13 +237,21 @@ function toggleRings() {
 function drawRings() {
   clearRings()
   ;[100, 200, 400].forEach(r => {
-    const c = L.circle(STATION, { radius: r * 1000, color: '#8ab4f8', weight: 1, opacity: 0.5, fill: false, dashArray: '4 4' })
-      .bindTooltip(`${r} km`, { permanent: true, direction: 'top', className: 'ring-label' })
-      .addTo(map)
+    const c = L.circle(STATION, { radius: r * 1000, color: '#8ab4f8', weight: 1.5, opacity: 0.7, fill: false, dashArray: '4 4' }).addTo(map)
     rings.push(c)
+    // 标签固定放在环的正上方（按半径换算纬度），保证三个环标签不重叠
+    const labelLat = STATION[0] + r / 111.32
+    const m = L.marker([labelLat, STATION[1]], {
+      icon: L.divIcon({ className: '', html: `<span class="ring-label">${r} km</span>`, iconSize: [64, 16], iconAnchor: [32, 8] }),
+      interactive: false,
+    }).addTo(map)
+    ringLabels.push(m)
   })
 }
-function clearRings() { rings.forEach(c => map.removeLayer(c)); rings = [] }
+function clearRings() {
+  rings.forEach(c => map.removeLayer(c)); rings = []
+  ringLabels.forEach(m => map.removeLayer(m)); ringLabels = []
+}
 
 // ====== 航迹速度矢量线（预测未来位置） ======
 function toggleVectors() {
@@ -424,6 +433,11 @@ onUnmounted(() => { clearInterval(timer); map?.remove() })
 .plane-pulse {
   animation: planePulse 1.2s ease-in-out infinite;
   transform-origin: center;
+}
+.ring-label {
+  color: #8ab4f8; font-size: 11px; font-weight: bold;
+  text-shadow: 0 0 3px rgba(0,0,0,.9); white-space: nowrap;
+  pointer-events: none;
 }
 </style>
 
