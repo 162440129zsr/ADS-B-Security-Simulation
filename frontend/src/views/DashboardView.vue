@@ -38,7 +38,7 @@
         <div class="fp-row"><label>高度上限 (ft)</label>
           <el-input-number v-model="filterAltMax" :min="0" :max="60000" :step="1000" size="small" style="width:110px;"/>
         </div>
-        <div class="fp-row"><label>距离范围 (km)</label>
+        <div class="fp-row"><label>距离范围 (km，0=不限)</label>
           <el-input-number v-model="filterMaxDist" :min="0" :max="3000" :step="50" size="small" style="width:110px;"/>
         </div>
         <div class="fp-row"><label>呼号 / ICAO</label>
@@ -115,7 +115,7 @@ const showFilter = ref(false)
 const rangeDist = ref('')
 const filterAltMin = ref(0)
 const filterAltMax = ref(60000)
-const filterMaxDist = ref(3000)
+const filterMaxDist = ref(0)   // 0 = 不限距离
 const filterCallsign = ref('')
 
 const stationCenter = ref<[number, number]>([32, 108])   // 地面站/监控终端位置（可拖动，距离环+距离过滤中心）
@@ -319,9 +319,10 @@ function updateVectors(ac: any, ll: [number, number]) {
 function toggleFilter() { showFilter.value = !showFilter.value }
 function resetFilter() {
   filterAltMin.value = 0; filterAltMax.value = 60000
-  filterMaxDist.value = 3000; filterCallsign.value = ''
+  filterMaxDist.value = 0; filterCallsign.value = ''
 }
 function applyFilter(ac: any): boolean {
+  if (!showFilter.value) return true   // 过滤面板关闭时不过滤
   const alt = ac.altitude || 0
   if (alt < filterAltMin.value || alt > filterAltMax.value) return false
   if (filterMaxDist.value > 0 && ac.latitude && ac.longitude) {
