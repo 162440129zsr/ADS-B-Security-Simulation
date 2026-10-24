@@ -118,7 +118,8 @@ const filterAltMax = ref(60000)
 const filterMaxDist = ref(3000)
 const filterCallsign = ref('')
 
-const STATION: [number, number] = [32, 108]   // 地面站/监控终端位置（距离环+距离过滤中心）
+const stationCenter = ref<[number, number]>([32, 108])   // 地面站/监控终端位置（可拖动，距离环+距离过滤中心）
+let centerMarker: L.Marker | null = null
 let rings: L.Circle[] = []
 let ringLabels: L.Marker[] = []
 let vectorLines: Record<string, L.Polyline> = {}
@@ -236,12 +237,13 @@ function toggleRings() {
 }
 function drawRings() {
   clearRings()
+  const c0 = stationCenter.value
   ;[100, 200, 400].forEach(r => {
-    const c = L.circle(STATION, { radius: r * 1000, color: '#8ab4f8', weight: 1.5, opacity: 0.7, fill: false, dashArray: '4 4' }).addTo(map)
+    const c = L.circle(c0, { radius: r * 1000, color: '#8ab4f8', weight: 1.5, opacity: 0.7, fill: false, dashArray: '4 4' }).addTo(map)
     rings.push(c)
     // 标签固定放在环的正上方（按半径换算纬度），保证三个环标签不重叠
-    const labelLat = STATION[0] + r / 111.32
-    const m = L.marker([labelLat, STATION[1]], {
+    const labelLat = c0[0] + r / 111.32
+    const m = L.marker([labelLat, c0[1]], {
       icon: L.divIcon({ className: '', html: `<span class="ring-label">${r} km</span>`, iconSize: [64, 16], iconAnchor: [32, 8] }),
       interactive: false,
     }).addTo(map)
@@ -251,6 +253,20 @@ function drawRings() {
 function clearRings() {
   rings.forEach(c => map.removeLayer(c)); rings = []
   ringLabels.forEach(m => map.removeLayer(m)); ringLabels = []
+}
+
+// ====== 站点中心（可拖动，距离环/距离过滤圆心） ======
+function initCenterMarker() {
+  centerMarker = L.marker(stationCenter.value, {
+    draggable: true,
+    icon: L.divIcon({ className: '', html: `<div class="station-pin">✛<span>站点</span></div>`, iconSize: [24, 24], iconAnchor: [12, 12] }),
+    zIndexOffset: 500,
+  }).addTo(map)
+  centerMarker.on('dragend', (e: L.LeafletEvent) => {
+    const ll = (e.target as L.Marker).getLatLng()
+    stationCenter.value = [ll.lat, ll.lng]
+    if (showRings.value) drawRings()   // 圆心变了，重画距离环
+  })
 }
 
 // ====== 航迹速度矢量线（预测未来位置） ======
@@ -291,7 +307,7 @@ function applyFilter(ac: any): boolean {
   const alt = ac.altitude || 0
   if (alt < filterAltMin.value || alt > filterAltMax.value) return false
   if (filterMaxDist.value > 0 && ac.latitude && ac.longitude) {
-    const d = distKm(STATION, [ac.latitude, ac.longitude])
+    const d = distKm(stationCenter.value, [ac.latitude, ac.longitude])
     if (d > filterMaxDist.value) return false
   }
   if (filterCallsign.value) {
@@ -415,6 +431,7 @@ onMounted(() => {
     maxZoom: 18, subdomains: ['1','2','3','4'],
   }).addTo(map)
   map.on('click', onMapClick)
+  initCenterMarker()
   refresh()
   timer = window.setInterval(refresh, 3000)
   if (route.query.focus) setTimeout(() => focusAircraft(route.query.focus as string), 1200)
@@ -439,6 +456,12 @@ onUnmounted(() => { clearInterval(timer); map?.remove() })
   text-shadow: 0 0 3px rgba(0,0,0,.9); white-space: nowrap;
   pointer-events: none;
 }
+.station-pin {
+  display: flex; flex-direction: column; align-items: center;
+  color: #ffd166; font-size: 16px; line-height: 1; cursor: move;
+  text-shadow: 0 0 4px rgba(0,0,0,.9); white-space: nowrap;
+}
+.station-pin span { font-size: 10px; color: #fff; margin-top: 1px; }
 </style>
 
 <style scoped>
