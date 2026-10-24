@@ -6,6 +6,7 @@ import com.adsb.simulation.model.SecurityAlert;
 import com.adsb.simulation.repository.*;
 import com.adsb.simulation.service.SecurityCheckService;
 import com.adsb.simulation.service.SimulationService;
+import com.adsb.simulation.service.AttackInjector;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,6 +22,7 @@ public class AircraftController {
     private final SecurityAlertRepository alertRepo;
     private final SimulationService simulationService;
     private final SecurityCheckService securityCheckService;
+    private final AttackInjector attackInjector;
 
     // ====== 飞行器 ======
 
@@ -96,12 +98,12 @@ public class AircraftController {
         return Map.of("success", true, "aircraftCount", aircraftRepo.count());
     }
 
-    /** 攻击模拟：注入异常数据触发安全告警 */
+    /** 攻击模拟：通过独立注入通道写入恶意报文（source=INJECTED），触发纯报文检测 */
     @PostMapping("/simulation/attack")
     public Map<String, Object> triggerAttack(@RequestBody(required = false) Map<String, Object> body) {
         String attackType = body != null && body.containsKey("attackType")
                 ? (String) body.get("attackType") : null;
-        return simulationService.triggerAttack(attackType);
+        return attackInjector.inject(attackType);
     }
 
     // ====== 告警 ======
@@ -174,5 +176,11 @@ public class AircraftController {
                 "unresolvedAlerts", alertRepo.countByIsResolvedFalse(),
                 "simulationRunning", simulationService.isRunning()
         );
+    }
+
+    /** 检测效果量化指标：检出率/误报率/精确率/F1 */
+    @GetMapping("/stats/detection")
+    public Map<String, Object> detectionMetrics() {
+        return securityCheckService.getDetectionMetrics();
     }
 }

@@ -27,6 +27,7 @@ export const fetchMessages = (icao: string) =>
 export const triggerAttack = (attackType?: string) =>
   api.post('/simulation/attack', attackType ? { attackType } : {}).then(r => r.data)
 export const fetchAlertStats = () => api.get('/alerts/stats').then(r => r.data)
+export const fetchDetectionMetrics = () => api.get('/stats/detection').then(r => r.data)
 export const resolveAlert = (id: number) => api.put(`/alerts/${id}/resolve`).then(r => r.data)
 export const clearAlerts = () => api.delete('/alerts').then(r => r.data)
 export const updateAircraftStatus = (icao: string, status: string) =>

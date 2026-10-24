@@ -51,6 +51,11 @@ public class SecurityAlert {
     @Builder.Default
     private Boolean isResolved = false;
 
+    /** 触发告警的报文来源：NORMAL / INJECTED。
+     *  检测逻辑不读取此字段，仅在告警落库时打标签，用于事后统计检出率/误报率。 */
+    @Column(length = 10)
+    private String source;
+
     @Column(updatable = false)
     private LocalDateTime createdAt;
 

@@ -63,6 +63,12 @@ public class AdsbMessage {
     /** CRC 校验是否通过 */
     private Boolean crcValid;
 
+    /** 报文来源：NORMAL（正常仿真） / INJECTED（攻击注入）。
+     *  该字段仅用于事后统计检出率/误报率，安全检测过程中不读取。 */
+    @Column(length = 10, nullable = false)
+    @Builder.Default
+    private String source = "NORMAL";
+
     /** 是否加密报文 */
     @Builder.Default
     private Boolean isEncrypted = false;

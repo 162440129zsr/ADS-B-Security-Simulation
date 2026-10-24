@@ -18,4 +18,6 @@ public interface SecurityAlertRepository extends JpaRepository<SecurityAlert, Lo
     long countByIsResolvedFalse();
 
     long countByAlertLevel(String alertLevel);
+
+    long countBySource(String source);
 }

@@ -71,9 +71,12 @@ const focusedIcao = ref('')
 
 let map: L.Map, timer = 0
 const markers: Record<string, L.Marker> = {}
-const trails: Record<string, L.Polyline> = {}
-const history: Record<string, [number, number][]> = {}
+const sealedTrails: Record<string, L.Polyline[]> = {}  // 已封存的历史轨迹段（断裂后冻结）
+const activeLine: Record<string, L.Polyline> = {}      // 当前活动轨迹段
+const history: Record<string, [number, number][]> = {} // 当前活动段点位
+const lastStatus: Record<string, string> = {}
 const MAX_TRAIL = 30
+const BREAK_DIST_KM = 80  // 相邻点位移超过此值视为轨迹断裂
 
 // ====== 飞机 SVG 图标（随航向旋转 + 发光效果） ======
 function planeIcon(heading: number, status: string) {
@@ -138,6 +141,25 @@ function updatePlaneMarker(icao: string, ll: [number, number], heading: number, 
 // ====== 格式化 ======
 function fmtTs(ts: number) { return ts ? new Date(ts).toLocaleTimeString('zh-CN') : '' }
 
+// 两经纬度点间距离（km），用于判断轨迹是否断裂
+function distKm(a: [number, number], b: [number, number]) {
+  const R = 6371
+  const dLat = (b[0] - a[0]) * Math.PI / 180
+  const dLon = (b[1] - a[1]) * Math.PI / 180
+  const s = Math.sin(dLat / 2) ** 2
+    + Math.cos(a[0] * Math.PI / 180) * Math.cos(b[0] * Math.PI / 180) * Math.sin(dLon / 2) ** 2
+  return 2 * R * Math.asin(Math.sqrt(s))
+}
+
+// 封存当前轨迹段（保留在地图上冻结），为新段腾出空间
+function sealSegment(icao: string, seg: [number, number][]) {
+  if (seg.length >= 2 && activeLine[icao]) {
+    if (!sealedTrails[icao]) sealedTrails[icao] = []
+    sealedTrails[icao]!.push(activeLine[icao]!)
+  }
+  delete activeLine[icao]
+}
+
 // ====== 核心刷新 ======
 async function refresh() {
   try {
@@ -156,30 +178,40 @@ async function refresh() {
       seen.add(ac.icao)
       const ll: [number, number] = [ac.latitude, ac.longitude]
 
-      // 轨迹
+      // 轨迹（支持断裂：状态翻转或位置跳变时封存旧段、开新段）
+      const status = ac.status
+      const prevStatus = lastStatus[ac.icao]
       if (!history[ac.icao]) history[ac.icao] = []
-      const trail = history[ac.icao]!
-      trail.push(ll)
-      if (trail.length > MAX_TRAIL) trail.shift()
+      let seg = history[ac.icao]!
+      const jumped = seg.length > 0 && distKm(seg[seg.length - 1]!, ll) > BREAK_DIST_KM
+      const flipped = prevStatus != null && prevStatus !== status
+      if (jumped || flipped) {
+        sealSegment(ac.icao, seg)
+        history[ac.icao] = []
+        seg = history[ac.icao]!
+      }
+      lastStatus[ac.icao] = status
+      seg.push(ll)
+      if (seg.length > MAX_TRAIL) seg.shift()
 
       // 标记
       if (markers[ac.icao]) {
-        updatePlaneMarker(ac.icao, ll, ac.heading, ac.status)
+        updatePlaneMarker(ac.icao, ll, ac.heading, status)
       } else {
-        const m = createPlaneMarker(ll, ac.heading, ac.status)
+        const m = createPlaneMarker(ll, ac.heading, status)
         markers[ac.icao] = m
         m.bindPopup(`<b>${ac.icao}</b><br>${ac.callsign||''}<br>${ac.altitude?.toFixed(0)}ft · ${ac.speed?.toFixed(0)}kt`)
         m.on('click', () => selectPlane(ac))
       }
 
       // 轨迹线
-      if (trail.length >= 2) {
-        const trailColor = ac.status === '异常' ? '#e94560' : '#0f9'
-        if (trails[ac.icao]) {
-          trails[ac.icao]!.setLatLngs(trail)
-          trails[ac.icao]!.setStyle({ color: trailColor })
+      if (seg.length >= 2) {
+        const trailColor = status === '异常' ? '#e94560' : '#0f9'
+        if (activeLine[ac.icao]) {
+          activeLine[ac.icao]!.setLatLngs(seg)
+          activeLine[ac.icao]!.setStyle({ color: trailColor })
         } else {
-          trails[ac.icao] = L.polyline(trail, {
+          activeLine[ac.icao] = L.polyline(seg, {
             color: trailColor, weight: 1.5, opacity: 0.45, dashArray: '4 4',
           }).addTo(map)
         }
@@ -190,8 +222,10 @@ async function refresh() {
     for (const k of Object.keys(markers)) {
       if (!seen.has(k)) {
         map.removeLayer(markers[k]!); delete markers[k]
-        if (trails[k]) { map.removeLayer(trails[k]); delete trails[k] }
+        if (activeLine[k]) { map.removeLayer(activeLine[k]!); delete activeLine[k] }
+        if (sealedTrails[k]) { sealedTrails[k]!.forEach(p => map.removeLayer(p)); delete sealedTrails[k] }
         delete history[k]
+        delete lastStatus[k]
       }
     }
   } catch (_) {}

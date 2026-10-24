@@ -11,12 +11,14 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 import java.util.Random;
 
 /**
- * 仿真模拟服务 — 参考 RID 项目 wifi.py 的无人机模拟逻辑
- * 定时生成飞行器位置更新和 ADS-B 报文
+ * 仿真模拟服务 —— 正常仿真通道
+ *
+ * 架构改造后，本服务【只】产生正常报文（source=NORMAL），
+ * 不再设置任何飞机的 status 为「异常」，也不再包含攻击逻辑。
+ * 攻击注入统一走独立的 {@link AttackInjector} 通道。
  */
 @Slf4j
 @Service
@@ -26,9 +28,8 @@ public class SimulationService {
     private final AircraftRepository aircraftRepo;
     private final AdsbMessageRepository messageRepo;
     private final SimulationConfigRepository configRepo;
-    private final AdsbDecoderService decoderService;
+    private final AdsbMessageFactory messageFactory;
     private final SecurityCheckService securityCheckService;
-    private final CrcService crcService;
 
     private static final Random RNG = new Random();
 
@@ -75,7 +76,6 @@ public class SimulationService {
         }
         running = true;
 
-        // 更新仿真配置
         List<SimulationConfig> configs = configRepo.findAll();
         SimulationConfig config;
         if (configs.isEmpty()) {
@@ -104,7 +104,6 @@ public class SimulationService {
     public void setAircraftCount(int count) {
         int current = (int) aircraftRepo.count();
         if (count > current) {
-            // 增加飞机：补充随机新飞机
             int add = count - current;
             for (int i = 0; i < add; i++) {
                 Aircraft ac = Aircraft.builder()
@@ -119,7 +118,6 @@ public class SimulationService {
                 aircraftRepo.save(ac);
             }
         } else if (count < current) {
-            // 减少飞机：删除多余的
             List<Aircraft> all = aircraftRepo.findAll();
             for (int i = current - 1; i >= count; i--) {
                 aircraftRepo.delete(all.get(i));
@@ -138,164 +136,40 @@ public class SimulationService {
     }
 
     /**
-     * 核心定时任务：每秒更新所有飞机位置并生成报文
+     * 核心定时任务：每秒更新所有飞机位置并生成【正常】报文
      */
     @Scheduled(fixedRate = 1000)
     public void tick() {
         if (!running) return;
-        long now = System.currentTimeMillis();
 
         List<Aircraft> aircraftList = aircraftRepo.findAll();
         for (Aircraft ac : aircraftList) {
-            // Haversine 位移（模拟飞行 1 秒）
-            // 每 tick 模拟 30 秒飞行，使飞机在地图上有肉眼可见的位移
+            // Haversine 位移（每 tick 模拟 30 秒飞行）
             double[] newPos = updatePosition(
                     ac.getLatitude(), ac.getLongitude(),
                     ac.getSpeed(), ac.getHeading(), 30.0
             );
             ac.setLatitude(newPos[0]);
             ac.setLongitude(newPos[1]);
-            // 微调高度
             ac.setAltitude(ac.getAltitude() + (RNG.nextDouble() - 0.5) * 100);
             ac.setAltitude(Math.max(0, Math.min(50000, ac.getAltitude())));
-            // 微调航向
             ac.setHeading((ac.getHeading() + (RNG.nextDouble() - 0.5) * 5 + 360) % 360);
             ac.setLastSeenAt(LocalDateTime.now());
             aircraftRepo.save(ac);
 
-            // 生成一条 ADS-B 报文记录
-            String rawHex = generatePositionHex(ac);
-            boolean crcOk = crcService.isValid(rawHex);
-
-            AdsbMessage msg = AdsbMessage.builder()
-                    .icao(ac.getIcao())
-                    .rawHex(rawHex)
-                    .df(17)
-                    .tc(11) // 空中位置(气压高度)
-                    .messageType("空中位置(气压高度)")
-                    .altitude(ac.getAltitude())
-                    .latitude(ac.getLatitude())
-                    .longitude(ac.getLongitude())
-                    .speed(ac.getSpeed())
-                    .heading(ac.getHeading())
-                    .crcValid(crcOk)
-                    .isEncrypted(false)
-                    .receivedAt(now)
-                    .build();
+            // 生成一条【正常】ADS-B 报文（source=NORMAL）
+            AdsbMessage msg = messageFactory.buildMessage(
+                    ac.getIcao(), ac.getAltitude(), ac.getLatitude(), ac.getLongitude(),
+                    ac.getSpeed(), ac.getHeading(), "NORMAL"
+            );
             messageRepo.save(msg);
 
-            // Day 10：每生成一条报文自动触发安全检查
-            securityCheckService.check(msg, ac);
+            // 纯报文安全检查（检测服务只读报文，不知道来源）
+            securityCheckService.check(msg);
         }
     }
 
     // ====== 工具方法 ======
-
-    /**
-     * 攻击模拟：随机选一架飞机注入异常数据，触发安全告警
-     * @param attackType 攻击类型: position / altitude / speed / crc / replay
-     */
-    public Map<String, Object> triggerAttack(String attackType) {
-        List<Aircraft> all = aircraftRepo.findAll();
-        if (all.isEmpty()) return Map.of("success", false, "message", "没有飞机可攻击");
-
-        Aircraft victim = all.get(RNG.nextInt(all.size()));
-        String type = attackType != null ? attackType
-                : new String[]{"position", "altitude", "speed", "crc"}[RNG.nextInt(4)];
-
-        AdsbMessage msg = null;
-        switch (type) {
-            case "position" -> {
-                // GPS 位置欺骗：瞬间偏移 500km
-                double oldLat = victim.getLatitude(), oldLon = victim.getLongitude();
-                victim.setLatitude(oldLat + (RNG.nextDouble() - 0.5) * 5);  // ~250-500km
-                victim.setLongitude(oldLon + (RNG.nextDouble() - 0.5) * 5);
-                victim.setStatus("异常");
-                aircraftRepo.save(victim);
-                msg = buildMessage(victim);
-                log.warn("🚨 攻击注入: 飞机 {} 位置被篡改 ({},{}) → ({},{})",
-                        victim.getIcao(), String.format("%.2f", oldLat), String.format("%.2f", oldLon),
-                        String.format("%.2f", victim.getLatitude()), String.format("%.2f", victim.getLongitude()));
-            }
-            case "altitude" -> {
-                // 高度篡改：瞬间变化 8000ft
-                double oldAlt = victim.getAltitude();
-                victim.setAltitude(oldAlt + (RNG.nextBoolean() ? 8000 : -8000));
-                victim.setAltitude(Math.max(0, Math.min(60000, victim.getAltitude())));
-                victim.setStatus("异常");
-                aircraftRepo.save(victim);
-                msg = buildMessage(victim);
-                log.warn("🚨 攻击注入: 飞机 {} 高度被篡改 {} → {} ft",
-                        victim.getIcao(), String.format("%.0f", oldAlt), String.format("%.0f", victim.getAltitude()));
-            }
-            case "speed" -> {
-                // 速度超限：设置到 700kt
-                victim.setSpeed(700 + RNG.nextDouble() * 100);
-                victim.setStatus("异常");
-                aircraftRepo.save(victim);
-                msg = buildMessage(victim);
-                log.warn("🚨 攻击注入: 飞机 {} 速度被篡改为 {} kt", victim.getIcao(), String.format("%.0f", victim.getSpeed()));
-            }
-            case "crc" -> {
-                // CRC 篡改：生成合法报文后篡改 PI 字段使 CRC 校验失败
-                msg = buildMessage(victim);
-                String hex = msg.getRawHex();
-                // 修改最后 6 位 PI 为随机值，打破 CRC 校验
-                StringBuilder broken = new StringBuilder(hex);
-                for (int i = 22; i < 28; i++) {
-                    broken.setCharAt(i, "0123456789ABCDEF".charAt(RNG.nextInt(16)));
-                }
-                msg.setRawHex(broken.toString());
-                msg.setCrcValid(false);
-                log.warn("🚨 攻击注入: 飞机 {} CRC 被篡改", victim.getIcao());
-            }
-            case "replay" -> {
-                // 重放攻击：发送一条和上一条完全相同的报文
-                List<AdsbMessage> recent = messageRepo.findByIcaoOrderByReceivedAtDesc(victim.getIcao());
-                if (!recent.isEmpty()) {
-                    msg = buildMessage(victim);
-                    msg.setRawHex(recent.get(0).getRawHex());  // 复用相同的 hex
-                    log.warn("🚨 攻击注入: 飞机 {} 重放攻击", victim.getIcao());
-                } else {
-                    msg = buildMessage(victim);
-                }
-            }
-            default -> {
-                return Map.of("success", false, "message", "未知攻击类型: " + type);
-            }
-        }
-
-        if (msg != null) {
-            msg.setReceivedAt(System.currentTimeMillis());
-            messageRepo.save(msg);
-            securityCheckService.check(msg, victim);
-        }
-
-        return Map.of(
-                "success", true,
-                "attackType", type,
-                "victimIcao", victim.getIcao(),
-                "victimCallsign", victim.getCallsign()
-        );
-    }
-
-    private AdsbMessage buildMessage(Aircraft ac) {
-        String rawHex = generatePositionHex(ac);
-        return AdsbMessage.builder()
-                .icao(ac.getIcao())
-                .rawHex(rawHex)
-                .df(17).tc(11)
-                .messageType("空中位置(气压高度)")
-                .altitude(ac.getAltitude())
-                .latitude(ac.getLatitude())
-                .longitude(ac.getLongitude())
-                .speed(ac.getSpeed())
-                .heading(ac.getHeading())
-                .crcValid(crcService.isValid(rawHex))
-                .isEncrypted(false)
-                .receivedAt(System.currentTimeMillis())
-                .build();
-    }
 
     private double[] updatePosition(double lat, double lon, double speedKt, double heading, double dtSec) {
         double speedMs = speedKt * 0.514444;
@@ -309,60 +183,10 @@ public class SimulationService {
         double newLat = lat + Math.toDegrees(dLat);
         double newLon = lon + Math.toDegrees(dLon);
 
-        // 边界回弹
         if (newLat > LAT_MAX || newLat < LAT_MIN) newLat = lat - Math.toDegrees(dLat);
         if (newLon > LON_MAX || newLon < LON_MIN) newLon = lon - Math.toDegrees(dLon);
 
         return new double[]{newLat, newLon};
-    }
-
-    /**
-     * 按 ADS-B 格式生成位置报文 hex（28 位）
-     * 格式: DF(1) + CA(1) + ICAO(6) + DATA(14) + PI(6)
-     * DF=17 (10001), CA=0 (000), 组成首字节 0x8D
-     */
-    private String generatePositionHex(Aircraft ac) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("8D");                    // DF=17, CA=0
-        sb.append(ac.getIcao());           // 6 hex, ICAO 地址
-
-        // TC=11 (空中位置, 气压高度) — 5 bits: 01011
-        // 后接 SS=0 (监视状态), etc.
-        // 简化：生成语义合理的 TC 11 报文框架
-        // Data 域: TC(5) + SS(2) + SAF(1) + ALT(12) + T(1) + F(1) + CPR-LAT(17) + CPR-LON(17)
-        // 共 56 bits = 14 hex chars
-
-        int tc = 11;                        // Type Code
-        int ss = 0;                         // Surveillance Status
-        int saf = 0;                        // Single Antenna Flag
-        // ALT: 气压高度编码 (Q=1, 25ft 增量)
-        int altRaw = (int) ((ac.getAltitude() + 1000) / 25);
-        altRaw = Math.max(0, Math.min(0xFFF, altRaw));
-        int t = 1;                          // Time flag
-        int f = RNG.nextInt(2);            // CPR odd/even
-
-        // CPR 编码（简化）
-        int cprLat = (int) ((ac.getLatitude() - Math.floor(ac.getLatitude())) * 131072);
-        int cprLon = (int) ((ac.getLongitude() - Math.floor(ac.getLongitude())) * 131072);
-
-        // 组装 56 bits ME 字段
-        long me = 0;
-        me = (me << 5)  | (tc & 0x1F);
-        me = (me << 2)  | (ss & 0x03);
-        me = (me << 1)  | (saf & 0x01);
-        me = (me << 12) | (altRaw & 0xFFF);
-        me = (me << 1)  | (t & 0x01);
-        me = (me << 1)  | (f & 0x01);
-        me = (me << 17) | (cprLat & 0x1FFFF);
-        me = (me << 17) | (cprLon & 0x1FFFF);
-
-        sb.append(String.format("%014X", me)); // 14 hex chars
-
-        // PI 字段：真实 CRC-24 编码
-        String body = sb.toString(); // 22 hex chars (DF+CA+ICAO+ME)
-        sb.append(crcService.generate(body));
-
-        return sb.toString().toUpperCase();
     }
 
     private String randomIcao() {
