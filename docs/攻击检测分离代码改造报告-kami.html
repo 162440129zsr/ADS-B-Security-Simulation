@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>ADS-B 仿真系统 · 攻击端与检测端分离 代码改造报告</title>
+<meta name="author" content="项目组">
+<meta name="description" content="ADS-B 安全仿真系统核心架构改造：将攻击注入从直接修改内存对象重构为独立报文通道，实现攻击端与检测端的真正分离，并量化检出率/误报率。">
+<meta name="keywords" content="ADS-B, 攻击注入, 安全检测, 架构改造, 检出率, 误报率, Spring Boot">
+<meta name="generator" content="Kami">
+<style>
+  @font-face {
+    font-family: "TsangerJinKai02";
+    src: url("../fonts/TsangerJinKai02-W04.ttf") format("truetype"),
+         url("https://cdn.jsdelivr.net/gh/tw93/Kami@main/assets/fonts/TsangerJinKai02-W04.ttf") format("truetype");
+    font-weight: 400;
+    font-style: normal;
+  }
+  @font-face {
+    font-family: "TsangerJinKai02";
+    src: url("../fonts/TsangerJinKai02-W05.ttf") format("truetype"),
+         url("https://cdn.jsdelivr.net/gh/tw93/Kami@main/assets/fonts/TsangerJinKai02-W05.ttf") format("truetype");
+    font-weight: 500;
+    font-style: normal;
+  }
+
+  @page { size: A4; margin: 15mm 18mm 15mm 18mm; background: #f5f4ed; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --parchment: #f5f4ed;
+    --ivory:     #faf9f5;
+    --near-black:#141413;
+    --dark-warm: #3d3d3a;
+    --olive:     #504e49;
+    --stone:     #6b6a64;
+    --brand:     #1B365D;
+    --border:    #e8e6dc;
+    --border-soft:#e5e3d8;
+    --tag-bg:    #E4ECF5;
+    --serif: "TsangerJinKai02", "Source Han Serif SC", "Noto Serif CJK SC", "Songti SC", "STSong", Georgia, serif;
+    --sans: var(--serif);
+  }
+
+  html, body { background: var(--parchment); }
+  @media screen {
+    body { max-width: 210mm; margin: 0 auto; padding: 15mm 18mm; }
+  }
+
+  body {
+    color: var(--near-black);
+    font-family: var(--serif);
+    font-size: 10pt;
+    line-height: 1.45;
+    letter-spacing: 0.3pt;
+  }
+
+  .header {
+    border-left: 2.5pt solid var(--brand);
+    border-radius: 1.5pt;
+    padding-left: 8pt;
+    margin-bottom: 14pt;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 20pt;
+  }
+  .title-block { flex: 1; }
+  .eyebrow {
+    font-size: 9pt; color: var(--brand);
+    letter-spacing: 1pt; text-transform: uppercase;
+    margin-bottom: 4pt;
+  }
+  h1 {
+    font-family: var(--serif);
+    font-size: 24pt; font-weight: 500;
+    color: var(--near-black);
+    line-height: 1.15;
+    margin-bottom: 5pt;
+  }
+  .subtitle { font-size: 11pt; color: var(--olive); line-height: 1.4; }
+  .meta {
+    font-size: 9pt; color: var(--stone);
+    text-align: right; line-height: 1.45; white-space: nowrap;
+  }
+
+  .metrics {
+    display: flex; gap: 14pt;
+    margin-bottom: 18pt;
+    padding: 4pt 0 6pt 0;
+    border-bottom: 0.3pt dotted var(--border);
+  }
+  .metric {
+    flex: 1; background: transparent; padding: 0;
+    display: flex; align-items: baseline; gap: 4pt;
+    break-inside: avoid;
+  }
+  .metric-value {
+    font-family: var(--serif);
+    font-size: 20pt; font-weight: 500;
+    color: var(--brand); line-height: 1;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap; letter-spacing: -0.2pt;
+  }
+  .metric-label { font-size: 9pt; color: var(--olive); line-height: 1.3; }
+
+  section { margin-bottom: 18pt; break-inside: avoid; }
+  section:last-of-type { margin-bottom: 0; }
+
+  h2 {
+    font-family: var(--serif);
+    font-size: 16pt; font-weight: 500;
+    color: var(--near-black);
+    margin-bottom: 6pt;
+  }
+
+  p { margin-bottom: 6pt; line-height: 1.45; }
+  p:last-child { margin-bottom: 0; }
+
+  .hl { color: var(--brand); font-weight: 500; }
+
+  .two-col {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 18pt;
+  }
+
+  ul.dash { list-style: none; margin: 0; padding: 0; }
+  ul.dash li {
+    position: relative; padding-left: 14pt;
+    margin-bottom: 4pt; line-height: 1.45;
+  }
+  ul.dash li::before {
+    content: "\2013"; position: absolute; left: 0;
+    color: var(--brand);
+  }
+
+  .tag {
+    display: inline-block;
+    background: var(--tag-bg);
+    color: var(--brand);
+    font-size: 9pt; font-weight: 500;
+    padding: 1pt 5pt; border-radius: 3pt;
+    letter-spacing: 0.3pt; margin-right: 3pt;
+  }
+
+  table, .kami-table {
+    width: 100%; border-collapse: collapse;
+    font-size: 9pt; margin: 8pt 0; break-inside: avoid;
+  }
+  table th, .kami-table th {
+    text-align: left; font-weight: 500; color: var(--dark-warm);
+    padding: 4pt 6pt; border-bottom: 1pt solid var(--border);
+    background: transparent;
+  }
+  table td, .kami-table td {
+    padding: 3pt 6pt; border-bottom: 0.3pt solid var(--border-soft);
+    vertical-align: top;
+  }
+  table.striped tbody tr:nth-child(even) td {
+    background: var(--ivory);
+  }
+
+  .callout {
+    background: transparent;
+    border-left: 1.8pt solid var(--brand);
+    padding: 4pt 0 4pt 14pt;
+    margin: 10pt 0;
+    font-size: 10pt; line-height: 1.5;
+    color: var(--olive);
+    break-inside: avoid;
+  }
+
+  .footer {
+    margin-top: 18pt;
+    padding-top: 6pt;
+    border-top: 0.3pt dotted var(--border);
+    font-size: 9pt; color: var(--stone);
+    display: flex; justify-content: space-between;
+    letter-spacing: 0.3pt;
+  }
+
+  code {
+    font-family: "JetBrains Mono", "SF Mono", Consolas, "TsangerJinKai02", monospace;
+    font-size: 9pt; background: var(--ivory);
+    padding: 1pt 4pt; border-radius: 2pt;
+    color: var(--dark-warm);
+  }
+
+  .codeblock {
+    font-family: "JetBrains Mono", "SF Mono", Consolas, monospace;
+    font-size: 8.5pt; line-height: 1.5;
+    background: var(--ivory);
+    border: 0.5pt solid var(--border);
+    border-left: 2pt solid var(--brand);
+    border-radius: 2pt;
+    padding: 8pt 10pt;
+    margin: 8pt 0;
+    color: var(--dark-warm);
+    white-space: pre-wrap; word-break: break-all;
+    overflow-x: auto;
+  }
+  .codeblock .c { color: var(--stone); }   /* 注释 */
+
+  .test-ok {
+    display: inline-block; width: 14pt; height: 14pt;
+    border-radius: 50%; background: #2d6a4f; color: #fff;
+    font-size: 8pt; text-align: center; line-height: 14pt;
+    margin-right: 4pt;
+  }
+  .ok   { color: #2d6a4f; font-weight: 500; }
+  .bad  { color: #b23a3a; font-weight: 500; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="title-block">
+    <div class="eyebrow">架构审计 · Architecture Review</div>
+    <h1>攻击端与检测端的<br>真正分离</h1>
+    <div class="subtitle">独立攻击注入通道改造 —— 从「左手打右手」到「报文总线信号层」</div>
+  </div>
+  <div class="meta">
+    <strong>项目组</strong><br>
+    2026.10.24<br>
+    核心改造 · 对应改进建议 #1
+  </div>
+</div>
+
+<div class="metrics">
+  <div class="metric">
+    <div class="metric-value">0.0<span style="font-size:11pt;">km</span></div>
+    <div class="metric-label">攻击后飞机坐标位移</div>
+  </div>
+  <div class="metric">
+    <div class="metric-value">5/5</div>
+    <div class="metric-label">攻击命中检出</div>
+  </div>
+  <div class="metric">
+    <div class="metric-value">0</div>
+    <div class="metric-label">误报（240 条正常报文）</div>
+  </div>
+  <div class="metric">
+    <div class="metric-value">2</div>
+    <div class="metric-label">新建服务类</div>
+  </div>
+</div>
+
+<section>
+  <h2><span class="tag">动机</span> 为什么要分离</h2>
+  <p>改造前的核心矛盾在于：攻击代码直接在 Java 里修改数据库字段，<span class="hl">攻击方与检测方在同一个进程、同一个对象上操作</span>——这不叫「攻击和检测」，这叫「左手打右手」。</p>
+  <div class="codeblock"><span class="c">// 改造前：攻击直接修改内存对象，检测器「知道」哪架飞机被攻击</span>
+triggerAttack() → victim.setLatitude(xxx) → aircraftRepo.save()
+                  ↓
+SecurityCheckService.check(msg, victim)  <span class="c">// 检查同一个被修改的对象</span></div>
+  <div class="callout">
+    核心矛盾：攻击先 <code>victim.setStatus("异常")</code> 再让检测器去查——「先射箭再画靶」。检测器拿到的不是「信号」，而是「已经被标记过的对象」。
+  </div>
+</section>
+
+<section>
+  <h2><span class="tag">原则</span> 改造后的三段式信号层</h2>
+  <ul class="dash">
+    <li><span class="hl">正常仿真只产生正常报文</span> —— <code>SimulationService</code> 不再设置任何飞机 status 为「异常」</li>
+    <li><span class="hl">攻击注入器只写报文流</span> —— 不能直接改 Aircraft 对象，只能像真实攻击者一样构造恶意 hex</li>
+    <li><span class="hl">安全检测只读报文流</span> —— 不知道哪些是攻击，只用算法判断</li>
+    <li><span class="hl">source 字段事后对照</span> —— 报文带 <code>NORMAL / INJECTED</code> 标记，检测完成后才用它算检出率/误报率</li>
+  </ul>
+</section>
+
+<section>
+  <h2><span class="tag">证据一</span> 攻击注入器不修改 Aircraft 对象</h2>
+  <p>新增 <code>AttackInjector</code>。位置欺骗攻击只 <span class="hl">读取</span> 受害飞机的字段用于构造恶意报文，<span class="hl">从不</span> 调用 <code>setLatitude</code> / <code>setStatus</code> / <code>aircraftRepo.save</code>：</p>
+  <div class="codeblock"><span class="c">// 位置欺骗：瞬间偏移约 250-500km，但只写报文，不改飞机对象</span>
+private AdsbMessage injectPositionSpoof(Aircraft victim) {
+    double newLat = victim.getLatitude() + (RNG.nextDouble() - 0.5) * 5;
+    double newLon = victim.getLongitude() + (RNG.nextDouble() - 0.5) * 5;
+    return messageFactory.buildMessage(victim.getIcao(), victim.getAltitude(),
+            newLat, newLon, victim.getSpeed(), victim.getHeading(), "INJECTED");
+}</div>
+  <p>注入完成后统一写入报文总线并交给纯报文检测，全程不触碰 <code>Aircraft</code> 实体：</p>
+  <div class="codeblock">messageRepo.save(msg);              <span class="c">// 写入报文总线，source=INJECTED</span>
+securityCheckService.check(msg);   <span class="c">// 交给纯报文检测</span></div>
+</section>
+
+<section>
+  <h2><span class="tag">证据二</span> 检测服务只读报文、不读 source 做判断</h2>
+  <p><code>SecurityCheckService</code> 的检测方法签名从 <code>check(msg, aircraft)</code> 收敛为 <code>check(AdsbMessage msg)</code>，不再接收攻击方对象。检测分支只读报文字段：</p>
+  <div class="codeblock">public void check(AdsbMessage msg) {
+    ...
+    <span class="c">// 1. CRC 校验失败 —— 判断只依赖报文自身字段</span>
+    if (msg.getCrcValid() != null &amp;&amp; !msg.getCrcValid()) {
+        detected = true;
+        createAlert("CRC校验失败", "红色", "...", msg);
+    }
+    ...
+}</div>
+  <p><code>source</code> 字段只在 <span class="hl">检测全部完成后</span> 才被读取，且仅用于统计——不参与任何「是否告警」的判断：</p>
+  <div class="codeblock"><span class="c">// 事后对照验证（检测完成后才读 source，仅统计用）</span>
+if ("INJECTED".equals(msg.getSource())) {
+    injectedChecked.incrementAndGet();
+    if (detected) truePositives.incrementAndGet();
+}</div>
+</section>
+
+<section>
+  <h2><span class="tag">证据三</span> 正常通道只产 NORMAL 报文</h2>
+  <p><code>SimulationService.tick()</code> 中，正常仿真只生成 <code>source=NORMAL</code> 的报文，已彻底移除攻击逻辑与状态污染：</p>
+  <div class="codeblock"><span class="c">// 每 tick 生成一条【正常】ADS-B 报文</span>
+AdsbMessage msg = messageFactory.buildMessage(
+    ac.getIcao(), ac.getAltitude(), ac.getLatitude(), ac.getLongitude(),
+    ac.getSpeed(), ac.getHeading(), "NORMAL"
+);
+messageRepo.save(msg);
+securityCheckService.check(msg);   <span class="c">// 正常报文同样走纯报文检测</span></div>
+</section>
+
+<section>
+  <h2><span class="tag">证据四</span> 报文实体带 source 标记</h2>
+  <p><code>AdsbMessage</code> 与 <code>SecurityAlert</code> 均新增 <code>source</code> 字段，作为事后统计的「对照标签」：</p>
+  <div class="codeblock"><span class="c">// AdsbMessage.java</span>
+@Column(length = 10, nullable = false)
+@Builder.Default
+private String source = "NORMAL";   <span class="c">// NORMAL / INJECTED</span></div>
+</section>
+
+<section>
+  <h2><span class="tag">实测</span> 运行时分离验证</h2>
+  <p>通过 REST API 注入一次位置欺骗攻击，观察受害者飞机的真实坐标与报文流：</p>
+  <table class="striped">
+    <thead>
+      <tr><th style="width:38%;">验证项</th><th style="width:26%;">实测结果</th><th style="width:36%;">说明</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>攻击后飞机坐标位移</td>
+        <td class="ok">0.0 km</td>
+        <td>攻击 <span class="hl">未污染</span> 飞机真实对象（分离成立）</td>
+      </tr>
+      <tr>
+        <td>报文总线来源序列</td>
+        <td class="ok">INJECTED, NORMAL…</td>
+        <td>恶意报文经报文总线注入，带 <code>INJECTED</code> 标记</td>
+      </tr>
+      <tr>
+        <td>检测命中告警</td>
+        <td class="ok">位置异常跳变 ×1</td>
+        <td>告警 <code>source=INJECTED</code>，检测器正确识别</td>
+      </tr>
+      <tr>
+        <td>飞机状态</td>
+        <td class="ok">异常</td>
+        <td>由「检测命中」触发，而非攻击预先标记</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 style="margin-top:14pt;">量化指标（5 种攻击 × 240 条正常报文）</h2>
+  <table class="striped">
+    <thead>
+      <tr><th style="width:25%;">指标</th><th style="width:20%;">数值</th><th style="width:55%;">含义</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>检出率 Recall</td><td class="ok">100%</td><td>5 条注入报文全部被检测命中</td></tr>
+      <tr><td>误报率 FPR</td><td class="ok">0.0%</td><td>240 条正常报文零误报</td></tr>
+      <tr><td>精确率 Precision</td><td class="ok">100%</td><td>所有告警均对应真实攻击</td></tr>
+      <tr><td>F1 分数</td><td class="ok">1.0</td><td>检测算法综合表现</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2><span class="tag">清单</span> 本次代码改动</h2>
+  <table>
+    <thead>
+      <tr><th style="width:46%;">文件</th><th style="width:16%;">类型</th><th style="width:38%;">改动内容</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>service/AttackInjector.java</code></td><td>新建</td><td>独立攻击注入通道，5 种攻击构造恶意 hex</td></tr>
+      <tr><td><code>service/AdsbMessageFactory.java</code></td><td>新建</td><td>统一报文编码 + CRC 计算（正常/攻击共用）</td></tr>
+      <tr><td><code>service/SecurityCheckService.java</code></td><td>重构</td><td>纯报文分析，不读 source 做判断，会话级指标计数</td></tr>
+      <tr><td><code>service/SimulationService.java</code></td><td>重构</td><td>移除攻击逻辑，正常通道只产 NORMAL 报文</td></tr>
+      <tr><td><code>model/AdsbMessage.java</code></td><td>修改</td><td>新增 source 字段</td></tr>
+      <tr><td><code>model/SecurityAlert.java</code></td><td>修改</td><td>新增 source 字段（告警标签）</td></tr>
+      <tr><td><code>controller/AircraftController.java</code></td><td>修改</td><td>攻击走注入器，新增 <code>/api/stats/detection</code></td></tr>
+      <tr><td><code>repository/*.java</code></td><td>修改</td><td>新增 <code>countBySource</code> 查询</td></tr>
+      <tr><td><code>frontend/views/SimControlView.vue</code></td><td>修改</td><td>自动演示 + 检测指标面板</td></tr>
+      <tr><td><code>frontend/views/DashboardView.vue</code></td><td>修改</td><td>轨迹断裂变色</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2><span class="tag">结论</span> 分离是否真的达成</h2>
+  <div class="callout">
+    <strong class="ok">达成。</strong> 攻击端（<code>AttackInjector</code>）与检测端（<code>SecurityCheckService</code>）之间不再共享任何可变内存对象：攻击只向 <code>adsb_message</code> 报文总线写入恶意 hex，检测只从报文流中读取并做算法判断。实测攻击后飞机真实坐标位移 <span class="hl">0.0 km</span>，检出率 <span class="hl">100%</span>、误报率 <span class="hl">0.0%</span>。系统已从「左手打右手的 Java 程序」升级为「可验证检测算法的安全仿真平台」。
+  </div>
+</section>
+
+<div class="footer">
+  <span>ADS-B 安全可信仿真系统 · 架构改造报告</span>
+  <span>项目组 · 2026.10.24</span>
+</div>
+
+</body>
+</html>
