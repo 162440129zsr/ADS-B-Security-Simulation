@@ -8,7 +8,8 @@ const router = createRouter({
     { path: '/parse', name: 'parse', component: () => import('@/views/MessageParseView.vue'), meta: { title: '报文解析' } },
     { path: '/alerts', name: 'alerts', component: () => import('@/views/SecurityAlertView.vue'), meta: { title: '安全告警' } },
     { path: '/control', name: 'control', component: () => import('@/views/SimControlView.vue'), meta: { title: '仿真控制' } },
-    { path: '/data', name: 'data', component: () => import('@/views/DataView.vue'), meta: { title: '数据可视化' } }
+    { path: '/data', name: 'data', component: () => import('@/views/DataView.vue'), meta: { title: '数据可视化' } },
+    { path: '/station', name: 'station', component: () => import('@/views/StationView.vue'), meta: { title: '站点状态' } }
   ]
 })
 

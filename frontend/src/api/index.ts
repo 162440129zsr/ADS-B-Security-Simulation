@@ -28,6 +28,12 @@ export const triggerAttack = (attackType?: string) =>
   api.post('/simulation/attack', attackType ? { attackType } : {}).then(r => r.data)
 export const fetchAlertStats = () => api.get('/alerts/stats').then(r => r.data)
 export const fetchDetectionMetrics = () => api.get('/stats/detection').then(r => r.data)
+
+// ====== 地面站状态 + 信标机 ======
+export const fetchStationStatus = () => api.get('/station/status').then(r => r.data)
+export const fetchBeacon = () => api.get('/beacon').then(r => r.data)
+export const setBeaconSignal = (strength: number) =>
+  api.post('/beacon/signal', { strength }).then(r => r.data)
 export const resolveAlert = (id: number) => api.put(`/alerts/${id}/resolve`).then(r => r.data)
 export const clearAlerts = () => api.delete('/alerts').then(r => r.data)
 export const updateAircraftStatus = (icao: string, status: string) =>

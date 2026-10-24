@@ -18,6 +18,35 @@
     <div class="map-area">
       <div id="map"></div>
 
+      <!-- 测量/显示工具条 -->
+      <div class="tool-panel">
+        <button class="tool-btn" :class="{active:ranging}" @click="toggleRanging">📏 测距</button>
+        <button class="tool-btn" :class="{active:showRings}" @click="toggleRings">◎ 距离环</button>
+        <button class="tool-btn" :class="{active:showVectors}" @click="toggleVectors">➤ 矢量线</button>
+        <button class="tool-btn" :class="{active:showFilter}" @click="toggleFilter">🔍 过滤</button>
+      </div>
+
+      <!-- 测距结果 -->
+      <div v-if="rangeDist" class="range-result">{{ rangeDist }}</div>
+
+      <!-- 目标过滤器面板 -->
+      <div v-if="showFilter" class="filter-panel">
+        <div class="fp-title">目标过滤器</div>
+        <div class="fp-row"><label>高度下限 (ft)</label>
+          <el-input-number v-model="filterAltMin" :min="0" :max="60000" :step="1000" size="small" style="width:110px;"/>
+        </div>
+        <div class="fp-row"><label>高度上限 (ft)</label>
+          <el-input-number v-model="filterAltMax" :min="0" :max="60000" :step="1000" size="small" style="width:110px;"/>
+        </div>
+        <div class="fp-row"><label>距离范围 (km)</label>
+          <el-input-number v-model="filterMaxDist" :min="0" :max="3000" :step="50" size="small" style="width:110px;"/>
+        </div>
+        <div class="fp-row"><label>呼号 / ICAO</label>
+          <el-input v-model="filterCallsign" size="small" placeholder="如 CCA 或 EFC4" clearable style="width:110px;"/>
+        </div>
+        <el-button size="small" type="danger" plain @click="resetFilter" style="width:100%;margin-top:6px;">重置过滤</el-button>
+      </div>
+
       <!-- 选中飞机信息面板 -->
       <transition name="slide">
         <div v-if="selectedPlane" class="info-panel">
@@ -77,6 +106,24 @@ const history: Record<string, [number, number][]> = {} // 当前活动段点位
 const lastStatus: Record<string, string> = {}
 const MAX_TRAIL = 30
 const BREAK_DIST_KM = 80  // 相邻点位移超过此值视为轨迹断裂
+
+// ====== 测量 / 显示 / 过滤 状态 ======
+const ranging = ref(false)
+const showRings = ref(false)
+const showVectors = ref(false)
+const showFilter = ref(false)
+const rangeDist = ref('')
+const filterAltMin = ref(0)
+const filterAltMax = ref(60000)
+const filterMaxDist = ref(3000)
+const filterCallsign = ref('')
+
+const STATION: [number, number] = [32, 108]   // 地面站/监控终端位置（距离环+距离过滤中心）
+let rings: L.Circle[] = []
+let vectorLines: Record<string, L.Polyline> = {}
+let rangePts: [number, number][] = []
+let rangeLine: L.Polyline | null = null
+let rangeMarks: L.CircleMarker[] = []
 
 // ====== 飞机 SVG 图标（随航向旋转 + 发光效果） ======
 function planeIcon(heading: number, status: string) {
@@ -160,6 +207,93 @@ function sealSegment(icao: string, seg: [number, number][]) {
   delete activeLine[icao]
 }
 
+// ====== 测距 ======
+function toggleRanging() {
+  ranging.value = !ranging.value
+  rangePts = []
+  rangeDist.value = ''
+  if (rangeLine) { map.removeLayer(rangeLine); rangeLine = null }
+  rangeMarks.forEach(m => map.removeLayer(m)); rangeMarks = []
+}
+function onMapClick(e: L.LeafletMouseEvent) {
+  if (!ranging.value) return
+  rangePts.push([e.latlng.lat, e.latlng.lng])
+  rangeMarks.push(L.circleMarker(e.latlng, { radius: 5, color: '#f0c040', weight: 2 }).addTo(map))
+  if (rangePts.length === 2) {
+    const d = distKm(rangePts[0]!, rangePts[1]!)
+    rangeDist.value = `两点距离：${d.toFixed(1)} km`
+    if (rangeLine) map.removeLayer(rangeLine)
+    rangeLine = L.polyline(rangePts, { color: '#f0c040', weight: 2 }).addTo(map)
+    rangePts = []
+  }
+}
+
+// ====== 距离环 ======
+function toggleRings() {
+  showRings.value = !showRings.value
+  showRings.value ? drawRings() : clearRings()
+}
+function drawRings() {
+  clearRings()
+  ;[100, 200, 400].forEach(r => {
+    const c = L.circle(STATION, { radius: r * 1000, color: '#8ab4f8', weight: 1, opacity: 0.5, fill: false, dashArray: '4 4' })
+      .bindTooltip(`${r} km`, { permanent: true, direction: 'top', className: 'ring-label' })
+      .addTo(map)
+    rings.push(c)
+  })
+}
+function clearRings() { rings.forEach(c => map.removeLayer(c)); rings = [] }
+
+// ====== 航迹速度矢量线（预测未来位置） ======
+function toggleVectors() {
+  showVectors.value = !showVectors.value
+  if (!showVectors.value) clearVectors()
+}
+function clearVectors() {
+  Object.values(vectorLines).forEach(p => map.removeLayer(p))
+  vectorLines = {}
+}
+function predictPosition(lat: number, lon: number, speedKt: number, heading: number, seconds: number): [number, number] {
+  const distKm = (speedKt || 0) * 1.852 * (seconds / 3600)
+  const br = (heading || 0) * Math.PI / 180
+  const dLat = distKm * Math.cos(br) / 111.32
+  const dLon = distKm * Math.sin(br) / (111.32 * Math.cos(lat * Math.PI / 180))
+  return [lat + dLat, lon + dLon]
+}
+function updateVectors(ac: any, ll: [number, number]) {
+  if (!showVectors.value) return
+  const [lat2, lon2] = predictPosition(ll[0], ll[1], ac.speed || 0, ac.heading || 0, 120)
+  const color = ac.status === '异常' ? '#e94560' : '#f0c040'
+  if (vectorLines[ac.icao]) {
+    vectorLines[ac.icao]!.setLatLngs([[ll[0], ll[1]], [lat2, lon2]])
+    vectorLines[ac.icao]!.setStyle({ color })
+  } else {
+    vectorLines[ac.icao] = L.polyline([[ll[0], ll[1]], [lat2, lon2]], { color, weight: 1.5, opacity: 0.7, dashArray: '3 6' }).addTo(map)
+  }
+}
+
+// ====== 目标过滤器 ======
+function toggleFilter() { showFilter.value = !showFilter.value }
+function resetFilter() {
+  filterAltMin.value = 0; filterAltMax.value = 60000
+  filterMaxDist.value = 3000; filterCallsign.value = ''
+}
+function applyFilter(ac: any): boolean {
+  const alt = ac.altitude || 0
+  if (alt < filterAltMin.value || alt > filterAltMax.value) return false
+  if (filterMaxDist.value > 0 && ac.latitude && ac.longitude) {
+    const d = distKm(STATION, [ac.latitude, ac.longitude])
+    if (d > filterMaxDist.value) return false
+  }
+  if (filterCallsign.value) {
+    const q = filterCallsign.value.toUpperCase()
+    const icao = (ac.icao || '').toUpperCase()
+    const cs = (ac.callsign || '').toUpperCase()
+    if (!icao.includes(q) && !cs.includes(q)) return false
+  }
+  return true
+}
+
 // ====== 核心刷新 ======
 async function refresh() {
   try {
@@ -175,6 +309,7 @@ async function refresh() {
     const seen = new Set<string>()
     for (const ac of pos) {
       if (!ac.latitude || !ac.longitude) continue
+      if (!applyFilter(ac)) continue   // 目标过滤器
       seen.add(ac.icao)
       const ll: [number, number] = [ac.latitude, ac.longitude]
 
@@ -216,6 +351,9 @@ async function refresh() {
           }).addTo(map)
         }
       }
+
+      // 航迹速度矢量线
+      updateVectors(ac, ll)
     }
 
     // 清理
@@ -224,6 +362,7 @@ async function refresh() {
         map.removeLayer(markers[k]!); delete markers[k]
         if (activeLine[k]) { map.removeLayer(activeLine[k]!); delete activeLine[k] }
         if (sealedTrails[k]) { sealedTrails[k]!.forEach(p => map.removeLayer(p)); delete sealedTrails[k] }
+        if (vectorLines[k]) { map.removeLayer(vectorLines[k]!); delete vectorLines[k] }
         delete history[k]
         delete lastStatus[k]
       }
@@ -266,6 +405,7 @@ onMounted(() => {
   L.tileLayer('http://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}', {
     maxZoom: 18, subdomains: ['1','2','3','4'],
   }).addTo(map)
+  map.on('click', onMapClick)
   refresh()
   timer = window.setInterval(refresh, 3000)
   if (route.query.focus) setTimeout(() => focusAircraft(route.query.focus as string), 1200)
@@ -323,4 +463,34 @@ onUnmounted(() => { clearInterval(timer); map?.remove() })
 
 .slide-enter-active,.slide-leave-active { transition:transform .25s ease,opacity .25s ease; }
 .slide-enter-from,.slide-leave-to { transform:translateX(30px);opacity:0; }
+
+/* 测量/显示工具条 */
+.tool-panel {
+  position:absolute; left:10px; top:10px; z-index:1000;
+  display:flex; flex-direction:column; gap:6px;
+}
+.tool-btn {
+  background:rgba(22,33,62,.92); color:#c9d1d9; border:1px solid #0f3460;
+  border-radius:6px; padding:6px 10px; font-size:12px; cursor:pointer;
+  text-align:left; width:88px;
+}
+.tool-btn:hover { border-color:#0f9; color:#0f9; }
+.tool-btn.active { border-color:#0f9; color:#0f9; background:rgba(15,255,153,.08); }
+
+.range-result {
+  position:absolute; left:104px; top:10px; z-index:1000;
+  background:rgba(22,33,62,.92); color:#f0c040; border:1px solid #0f3460;
+  border-radius:6px; padding:6px 10px; font-size:12px;
+}
+
+/* 目标过滤器面板 */
+.filter-panel {
+  position:absolute; left:10px; top:150px; z-index:1000; width:200px;
+  background:rgba(22,33,62,.96); border:1px solid #0f3460; border-radius:8px;
+  padding:10px; color:#e0e0e0; font-size:12px;
+  box-shadow:0 4px 24px rgba(0,0,0,.6);
+}
+.fp-title { font-size:13px; font-weight:bold; color:#0f9; margin-bottom:8px; }
+.fp-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+.fp-row label { color:#8b949e; font-size:11px; }
 </style>

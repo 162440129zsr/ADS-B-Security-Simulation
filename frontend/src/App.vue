@@ -11,6 +11,7 @@
         <el-menu-item index="/alerts"><span>⚠️ 安全告警</span></el-menu-item>
         <el-menu-item index="/control"><span>⚙️ 仿真控制</span></el-menu-item>
         <el-menu-item index="/data"><span>📊 数据可视化</span></el-menu-item>
+        <el-menu-item index="/station"><span>📡 站点状态</span></el-menu-item>
       </el-menu>
     </el-aside>
     <el-main style="background:#1a1a2e;padding:0;overflow:hidden;">
