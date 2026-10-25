@@ -21,8 +21,8 @@
     <div v-for="g in groups" :key="g.icao" class="alert-group">
       <div class="group-header">
         <div style="display:flex;align-items:center;gap:8px;min-width:0;">
-          <span class="group-icao">✈ {{ g.icao }}</span>
-          <span v-if="g.callsign" class="group-callsign">{{ g.callsign }}</span>
+          <span class="group-icao">{{ g.isBeacon ? '📡 信标机 (BEA001)' : '✈ ' + g.icao }}</span>
+          <span v-if="g.callsign && !g.isBeacon" class="group-callsign">{{ g.callsign }}</span>
           <el-tag size="small" :type="g.hasRed ? 'danger' : 'warning'">{{ g.count }} 条告警</el-tag>
         </div>
         <span class="group-latest">最近 {{ fmtTime(g.latest) }}</span>
@@ -79,6 +79,7 @@ async function load() {
     alertList.forEach(a => { (byIcao[a.icao] ||= []).push(a) })
     groups.value = Object.entries(byIcao).map(([icao, list]) => ({
       icao,
+      isBeacon: list.some(a => a.source === 'STATION'),
       callsign: callsignMap[icao] || '',
       alerts: list,
       count: list.length,
