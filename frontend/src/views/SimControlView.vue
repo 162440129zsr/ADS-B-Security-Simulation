@@ -48,9 +48,13 @@
       </el-button>
     </div>
 
-    <!-- 攻击日志（单次 + 自动演示统一展示） -->
-    <div v-if="attackLog.length" style="margin-top:12px;">
-      <p style="color:#e0e0e0;font-size:12px;margin-bottom:4px;">攻击日志（最新在上）：</p>
+    <!-- 攻击日志（单次 + 自动演示统一展示，持久化保存） -->
+    <div style="margin-top:12px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <span style="color:#e0e0e0;font-size:12px;">攻击日志（{{ attackLog.length }} 条，最新在上）</span>
+        <el-button size="small" plain type="danger" @click="clearAttackLog" :disabled="!attackLog.length">🗑 清空日志</el-button>
+      </div>
+      <div v-if="attackLog.length===0" style="color:#666;font-size:11px;">暂无攻击记录</div>
       <div v-for="(l, i) in attackLog" :key="i" class="attack-log">
         <span style="color:#0f9;">✔</span> {{ l }}
       </div>
@@ -119,6 +123,21 @@ function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)) }
 
 let timer: number
 
+// ====== 攻击日志持久化（localStorage，切页面/刷新不丢） ======
+const ATTACK_LOG_KEY = 'adsb_attack_log'
+function persistLog() {
+  localStorage.setItem(ATTACK_LOG_KEY, JSON.stringify(attackLog.value))
+}
+function loadLog() {
+  try {
+    attackLog.value = JSON.parse(localStorage.getItem(ATTACK_LOG_KEY) || '[]')
+  } catch (_) { attackLog.value = [] }
+}
+function clearAttackLog() {
+  attackLog.value = []
+  localStorage.removeItem(ATTACK_LOG_KEY)
+}
+
 async function load() {
   try {
     const s = await fetchSimStatus()
@@ -148,7 +167,8 @@ async function doAttack(attackType?: string) {
   try {
     const res = await triggerAttack(attackType)
     attackLog.value.unshift(`⚡ ${attackLabel(res.attackType)} → ${res.victimCallsign || res.victimIcao}`)
-    if (attackLog.value.length > 30) attackLog.value.pop()
+    if (attackLog.value.length > 100) attackLog.value.pop()
+    persistLog()
     load()
   } catch (_) { /* */ }
   attacking.value = false
@@ -167,7 +187,8 @@ async function autoDemo() {
     } catch (_) {
       attackLog.value.unshift(`🎬 ${i + 1}/5 ${attackLabel(t)} 注入失败`)
     }
-    if (attackLog.value.length > 30) attackLog.value.pop()
+    if (attackLog.value.length > 100) attackLog.value.pop()
+    persistLog()
     await sleep(2500)
   }
   await loadMetrics()
@@ -197,7 +218,7 @@ async function doClearReal() {
   load()
 }
 
-onMounted(() => { load(); loadMetrics(); timer = window.setInterval(load, 2000) })
+onMounted(() => { loadLog(); load(); loadMetrics(); timer = window.setInterval(load, 2000) })
 onUnmounted(() => clearInterval(timer))
 </script>
 
