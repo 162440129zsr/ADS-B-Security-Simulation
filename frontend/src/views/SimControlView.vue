@@ -45,17 +45,19 @@
       </el-button>
     </div>
 
+    <!-- 攻击日志（单次 + 自动演示统一展示） -->
+    <div v-if="attackLog.length" style="margin-top:12px;">
+      <p style="color:#e0e0e0;font-size:12px;margin-bottom:4px;">攻击日志（最新在上）：</p>
+      <div v-for="(l, i) in attackLog" :key="i" class="attack-log">
+        <span style="color:#0f9;">✔</span> {{ l }}
+      </div>
+    </div>
+
     <!-- 自动演示 -->
     <el-button type="danger" plain size="large" style="width:100%;margin-top:12px;"
       @click="autoDemo" :loading="autoDemoing">
       🎬 自动演示（连续触发 5 种攻击）
     </el-button>
-    <div v-if="demoLog.length" class="demo-log">
-      <p style="color:#e0e0e0;font-size:12px;margin-bottom:4px;">演示进度：</p>
-      <div v-for="(l, i) in demoLog" :key="i" class="attack-log">
-        <span style="color:#0f9;">✔</span> {{ l }}
-      </div>
-    </div>
 
     <!-- 真实 ADS-B 数据源 -->
     <h2 style="color:#4da3ff;margin:16px 0 8px;">🌐 真实 ADS-B 数据源</h2>
@@ -85,23 +87,12 @@
       </p>
       <el-button size="small" text @click="loadMetrics" style="margin-top:4px;">🔄 刷新指标</el-button>
     </el-card>
-
-    <!-- 攻击记录 -->
-    <div v-if="attackResults.length" style="margin-top:12px;">
-      <p style="color:#e0e0e0;font-size:12px;margin-bottom:4px;">攻击记录：</p>
-      <div v-for="(r, i) in attackResults" :key="i" class="attack-log">
-        <span v-if="r.success" style="color:#0f9;">✔</span>
-        <span v-else style="color:#e94560;">✘</span>
-        {{ attackLabel(r.attackType) }} → {{ r.victimCallsign || r.victimIcao }}
-        <span class="arrow">→</span> <router-link to="/alerts" style="color:#0f9;">查看告警</router-link>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import { fetchSimStatus, startSim, stopSim, updateConfig, triggerAttack, clearAlerts, fetchDetectionMetrics, importRealData, clearRealData } from '@/api'
+import { fetchSimStatus, startSim, stopSim, updateConfig, triggerAttack, fetchDetectionMetrics, resetDetectionMetrics, importRealData, clearRealData } from '@/api'
 
 const running = ref(false)
 const count = ref(0)
@@ -110,8 +101,7 @@ const messages = ref(0)
 const aircraftCount = ref(15)
 const attacking = ref(false)
 const autoDemoing = ref(false)
-const attackResults = ref<any[]>([])
-const demoLog = ref<string[]>([])
+const attackLog = ref<string[]>([])
 const metrics = ref<any>({})
 const importingReal = ref(false)
 const realMsg = ref('')
@@ -154,27 +144,27 @@ async function doAttack(attackType?: string) {
   attacking.value = true
   try {
     const res = await triggerAttack(attackType)
-    attackResults.value.unshift(res)
-    if (attackResults.value.length > 10) attackResults.value.pop()
+    attackLog.value.unshift(`⚡ ${attackLabel(res.attackType)} → ${res.victimCallsign || res.victimIcao}`)
+    if (attackLog.value.length > 30) attackLog.value.pop()
     load()
   } catch (_) { /* */ }
   attacking.value = false
 }
 
-// 自动演示：清空告警 → 按固定节奏连续触发 5 种攻击 → 汇总检测指标
+// 自动演示：重置指标（不删告警）→ 按固定节奏连续触发 5 种攻击 → 汇总检测指标
 async function autoDemo() {
   autoDemoing.value = true
-  demoLog.value = []
-  try { await clearAlerts() } catch (_) { /* */ }
+  try { await resetDetectionMetrics() } catch (_) { /* */ }
   const types = ['position', 'altitude', 'speed', 'crc', 'replay']
   for (let i = 0; i < types.length; i++) {
     const t = types[i]
     try {
       const res = await triggerAttack(t)
-      demoLog.value.unshift(`${i + 1}/5 ${attackLabel(t)} → ${res.victimCallsign || res.victimIcao}`)
+      attackLog.value.unshift(`🎬 ${i + 1}/5 ${attackLabel(t)} → ${res.victimCallsign || res.victimIcao}`)
     } catch (_) {
-      demoLog.value.unshift(`${i + 1}/5 ${attackLabel(t)} 注入失败`)
+      attackLog.value.unshift(`🎬 ${i + 1}/5 ${attackLabel(t)} 注入失败`)
     }
+    if (attackLog.value.length > 30) attackLog.value.pop()
     await sleep(2500)
   }
   await loadMetrics()

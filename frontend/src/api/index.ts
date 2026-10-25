@@ -28,6 +28,7 @@ export const triggerAttack = (attackType?: string) =>
   api.post('/simulation/attack', attackType ? { attackType } : {}).then(r => r.data)
 export const fetchAlertStats = () => api.get('/alerts/stats').then(r => r.data)
 export const fetchDetectionMetrics = () => api.get('/stats/detection').then(r => r.data)
+export const resetDetectionMetrics = () => api.post('/stats/detection/reset').then(r => r.data)
 
 // ====== 地面站状态 + 信标机 ======
 export const fetchStationStatus = () => api.get('/station/status').then(r => r.data)

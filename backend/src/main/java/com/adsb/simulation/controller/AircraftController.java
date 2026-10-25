@@ -189,6 +189,13 @@ public class AircraftController {
         return securityCheckService.getDetectionMetrics();
     }
 
+    /** 重置检测指标与去重缓存（不删除告警，供自动演示使用） */
+    @PostMapping("/stats/detection/reset")
+    public Map<String, Object> resetDetectionMetrics() {
+        securityCheckService.clearAllDedupCache();
+        return Map.of("success", true);
+    }
+
     // ====== 真实 ADS-B 数据源 ======
 
     /** 从 OpenSky 导入真实航班 */
