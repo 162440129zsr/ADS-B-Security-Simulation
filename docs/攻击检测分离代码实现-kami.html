@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>ADS-B 仿真系统 · 攻击与检测分离 代码实现解析</title>
+<meta name="author" content="项目组">
+<meta name="description" content="ADS-B 安全仿真系统中攻击注入与安全检测的代码实现，以及两者通过报文总线实现「发射-接收」分离的机制。">
+<meta name="keywords" content="ADS-B, 攻击注入, 安全检测, 架构分离, 报文总线, Java, Spring Boot">
+<meta name="generator" content="Kami">
+<style>
+  @font-face {
+    font-family: "TsangerJinKai02";
+    src: url("../fonts/TsangerJinKai02-W04.ttf") format("truetype"),
+         url("https://cdn.jsdelivr.net/gh/tw93/Kami@main/assets/fonts/TsangerJinKai02-W04.ttf") format("truetype");
+    font-weight: 400; font-style: normal;
+  }
+  @font-face {
+    font-family: "TsangerJinKai02";
+    src: url("../fonts/TsangerJinKai02-W05.ttf") format("truetype"),
+         url("https://cdn.jsdelivr.net/gh/tw93/Kami@main/assets/fonts/TsangerJinKai02-W05.ttf") format("truetype");
+    font-weight: 500; font-style: normal;
+  }
+  @page { size: A4; margin: 15mm 18mm 15mm 18mm; background: #f5f4ed; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --parchment:#f5f4ed; --ivory:#faf9f5; --near-black:#141413; --dark-warm:#3d3d3a;
+    --olive:#504e49; --stone:#6b6a64; --brand:#1B365D; --border:#e8e6dc; --border-soft:#e5e3d8;
+    --tag-bg:#E4ECF5;
+    --serif:"TsangerJinKai02","Source Han Serif SC","Noto Serif CJK SC","Songti SC","STSong",Georgia,serif;
+    --mono:"JetBrains Mono","SF Mono",Consolas,monospace;
+  }
+  html, body { background: var(--parchment); }
+  @media screen { body { max-width: 210mm; margin: 0 auto; padding: 15mm 18mm; } }
+  body { color:var(--near-black); font-family:var(--serif); font-size:10pt; line-height:1.45; letter-spacing:.3pt; }
+  .header { border-left:2.5pt solid var(--brand); border-radius:1.5pt; padding-left:8pt; margin-bottom:14pt; display:flex; align-items:flex-end; justify-content:space-between; gap:20pt; }
+  .title-block { flex:1; }
+  .eyebrow { font-size:9pt; color:var(--brand); letter-spacing:1pt; text-transform:uppercase; margin-bottom:4pt; }
+  h1 { font-family:var(--serif); font-size:24pt; font-weight:500; color:var(--near-black); line-height:1.15; margin-bottom:5pt; }
+  .subtitle { font-size:11pt; color:var(--olive); line-height:1.4; }
+  .meta { font-size:9pt; color:var(--stone); text-align:right; line-height:1.45; white-space:nowrap; }
+  .metrics { display:flex; gap:14pt; margin-bottom:18pt; padding:4pt 0 6pt 0; border-bottom:.3pt dotted var(--border); }
+  .metric { flex:1; display:flex; align-items:baseline; gap:4pt; }
+  .metric-value { font-size:20pt; font-weight:500; color:var(--brand); line-height:1; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .metric-label { font-size:9pt; color:var(--olive); line-height:1.3; }
+  section { margin-bottom:18pt; break-inside:avoid; }
+  h2 { font-size:16pt; font-weight:500; color:var(--near-black); margin-bottom:6pt; }
+  p { margin-bottom:6pt; line-height:1.5; }
+  .hl { color:var(--brand); font-weight:500; }
+  .tag { display:inline-block; background:var(--tag-bg); color:var(--brand); font-size:9pt; font-weight:500; padding:1pt 5pt; border-radius:3pt; letter-spacing:.3pt; margin-right:3pt; }
+  ul.dash { list-style:none; margin:0; padding:0; }
+  ul.dash li { position:relative; padding-left:14pt; margin-bottom:4pt; line-height:1.5; }
+  ul.dash li::before { content:"\2013"; position:absolute; left:0; color:var(--brand); }
+  code { font-family:var(--mono); font-size:9pt; background:var(--ivory); padding:1pt 4pt; border-radius:2pt; color:var(--dark-warm); }
+  .codeblock {
+    font-family:var(--mono); font-size:8.3pt; line-height:1.55;
+    background:var(--ivory); border:.5pt solid var(--border); border-left:2pt solid var(--brand);
+    border-radius:2pt; padding:9pt 11pt; margin:8pt 0; color:var(--dark-warm);
+    white-space:pre; overflow-x:auto; word-break:normal;
+  }
+  .codeblock .c { color:var(--stone); }
+  .codeblock .k { color:var(--brand); font-weight:600; }
+  .callout { background:transparent; border-left:1.8pt solid var(--brand); padding:4pt 0 4pt 14pt; margin:10pt 0; font-size:10pt; line-height:1.55; color:var(--olive); }
+  .diagram { font-family:var(--mono); font-size:8.5pt; line-height:1.5; background:var(--ivory); border:.5pt solid var(--border); border-radius:2pt; padding:10pt 12pt; margin:8pt 0; color:var(--dark-warm); white-space:pre; overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:9pt; margin:8pt 0; }
+  table th { text-align:left; font-weight:500; color:var(--dark-warm); padding:4pt 6pt; border-bottom:1pt solid var(--border); }
+  table td { padding:3pt 6pt; border-bottom:.3pt solid var(--border-soft); vertical-align:top; }
+  .footer { margin-top:18pt; padding-top:6pt; border-top:.3pt dotted var(--border); font-size:9pt; color:var(--stone); display:flex; justify-content:space-between; letter-spacing:.3pt; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="title-block">
+    <div class="eyebrow">代码实现 · Implementation</div>
+    <h1>攻击与检测的分离<br>代码实现解析</h1>
+    <div class="subtitle">攻击端「发射」恶意信号 → 报文总线 → 检测端「接收」并自行判断，而非发射瞬间即知受害者</div>
+  </div>
+  <div class="meta">
+    <strong>项目组</strong><br>
+    2026.10.25<br>
+    核心架构
+  </div>
+</div>
+
+<div class="metrics">
+  <div class="metric"><div class="metric-value">2</div><div class="metric-label">独立服务</div></div>
+  <div class="metric"><div class="metric-value">1</div><div class="metric-label">报文总线信道</div></div>
+  <div class="metric"><div class="metric-value">5</div><div class="metric-label">检测算法</div></div>
+  <div class="metric"><div class="metric-value">100%</div><div class="metric-label">检出率</div></div>
+</div>
+
+<section>
+  <h2><span class="tag">总览</span> 分离的物理形态：一个「信号信道」</h2>
+  <p>攻击方与检测方之间没有共享任何可变内存对象，唯一的联系是<span class="hl">报文总线（<code>adsb_message</code> 表）</span>——它扮演真实世界里「1090MHz 无线信道」的角色。</p>
+  <div class="diagram">攻击端 <span class="k">AttackInjector</span>
+   │ 1. 选中一架飞机，构造一条「被篡改」的恶意 hex
+   │ 2. 只做一件事：把这条报文写入报文总线（source=INJECTED）
+   ▼
+┌───────────────────────────────────────────┐
+│  报文总线  adsb_message 表（唯一的信号信道）      │
+│  报文里只有：icao + rawHex + 高度/速度/经纬度/CRC │
+└───────────────────────────────────────────┘
+   │ 3. 检测端只从这里「读」报文流
+   ▼
+检测端 <span class="k">SecurityCheckService</span>
+   │ 4. 用 5 个算法独立判断「这条报文是否异常」
+   │    不读 source 字段，不知道哪条是攻击注入的
+   ▼
+告警列表 + 事后统计（此时才读 source 算检出率/误报率）</div>
+  <div class="callout">
+    <span class="hl">关键：</span>攻击端写入报文后，<span class="hl">没有</span>向检测端传递「哪架飞机被攻击了」这个信息；检测端是靠「报文内容本身」推断出来的。这正对应你说的——<b>一端先发出攻击信号，另一端再接收到并自行判断</b>，而不是发射的那一刻检测端就知道受害者是谁。
+  </div>
+</section>
+
+<section>
+  <h2><span class="tag">攻击端</span> 一、攻击代码是怎么「发射信号」的</h2>
+  <p>核心类 <code>AttackInjector</code>。它挑选受害者、构造恶意报文、写入总线——<span class="hl">从不修改 Aircraft 对象，也不通知检测端</span>。</p>
+  <div class="codeblock"><span class="c">// AttackInjector.java —— 注入一次攻击</span>
+<span class="k">public</span> Map&lt;String, Object&gt; inject(String attackType) {
+    <span class="c">// 只攻击仿真飞机（有活跃报文流与检测历史）</span>
+    List&lt;Aircraft&gt; all = aircraftRepo.findBySource("SIMULATION");
+    <span class="k">if</span> (all.isEmpty()) <span class="k">return</span> Map.of("success", false, "message", "没有仿真飞机可攻击");
+
+    Aircraft victim = all.get(RNG.nextInt(all.size()));
+    String type = attackType != null ? attackType : ATTACK_TYPES[RNG.nextInt(5)];
+
+    AdsbMessage msg = switch (type) {
+        case "position" -&gt; injectPositionSpoof(victim);
+        case "altitude" -&gt; injectAltitudeSpoof(victim);
+        case "speed"    -&gt; injectSpeedOverrun(victim);
+        case "crc"      -&gt; injectCrcCorruption(victim);
+        case "replay"   -&gt; injectReplay(victim);
+        default         -&gt; null;
+    };
+    <span class="k">if</span> (msg == null) <span class="k">return</span> Map.of("success", false, "message", "未知攻击类型");
+
+    <span class="c">// ★ 攻击只「发射」一条恶意报文到报文总线，不通知检测端受害者是谁</span>
+    messageRepo.save(msg);            <span class="c">// 写入报文总线，source=INJECTED</span>
+    securityCheckService.check(msg);  <span class="c">// 交给纯报文检测，检测端自行判断</span>
+
+    <span class="k">return</span> Map.of("success", true, "attackType", type, "victimIcao", victim.getIcao());
+}</div>
+  <p>再看「位置欺骗」攻击：它只是<span class="hl">用被篡改的经纬度去构造一条报文</span>，并没有去改飞机对象。</p>
+  <div class="codeblock"><span class="c">// 位置欺骗：只构造一条「篡改后」的报文，不修改 Aircraft 对象</span>
+<span class="k">private</span> AdsbMessage injectPositionSpoof(Aircraft victim) {
+    <span class="k">double</span> newLat = victim.getLatitude() + (RNG.nextDouble() - 0.5) * 5;
+    <span class="k">double</span> newLon = victim.getLongitude() + (RNG.nextDouble() - 0.5) * 5;
+    <span class="c">// 用被篡改的经纬度构造报文，source 标记为 INJECTED</span>
+    <span class="k">return</span> messageFactory.buildMessage(victim.getIcao(), victim.getAltitude(),
+            newLat, newLon, victim.getSpeed(), victim.getHeading(), "INJECTED");
+}</div>
+</section>
+
+<section>
+  <h2><span class="tag">检测端</span> 二、检测代码是怎么「接收并判断」的</h2>
+  <p>核心类 <code>SecurityCheckService</code>。它的入口 <code>check(AdsbMessage msg)</code> <span class="hl">只接收一条报文</span>，不接收任何「攻击标记」或「受害者身份」参数。</p>
+  <div class="codeblock"><span class="c">// SecurityCheckService.java —— 对一条报文做纯报文分析</span>
+<span class="k">public void</span> check(AdsbMessage msg) {   <span class="c">// ★ 只收一条报文，不接收任何“攻击标记”</span>
+    <span class="k">if</span> (msg == null) <span class="k">return</span>;
+    String icao = msg.getIcao();
+    Aircraft aircraft = aircraftRepo.findByIcao(icao).orElse(null); <span class="c">// 仅用于标记状态</span>
+    <span class="k">boolean</span> detected = false;
+
+    <span class="c">// 1. CRC 校验失败</span>
+    <span class="k">if</span> (msg.getCrcValid() != null &amp;&amp; !msg.getCrcValid()) {
+        detected = true;
+        createAlert("CRC校验失败", "红色", "...", msg);
+        markAbnormal(aircraft);
+    }
+    <span class="c">// 2. 速度超限</span>
+    <span class="k">if</span> (msg.getSpeed() != null &amp;&amp; msg.getSpeed() &gt; MAX_SPEED_KT) {
+        detected = true;
+        createAlert("速度超限", "橙色", "...", msg);
+        markAbnormal(aircraft);
+    }
+    <span class="c">// 3. 高度异常（绝对高度超出飞行包线）…（阈值判断，略）</span>
+
+    <span class="c">// 4. 位置跳变：滑动窗口中位数检测（核心算法）</span>
+    Deque&lt;double[]&gt; window = positionWindows.computeIfAbsent(icao, k -&gt; new ArrayDeque&lt;&gt;());
+    window.addLast(new double[]{msg.getLatitude(), msg.getLongitude()});
+    <span class="k">if</span> (window.size() &gt; WINDOW_SIZE) window.removeFirst();
+    <span class="k">if</span> (window.size() &gt;= 3) {
+        <span class="c">// 取窗口内经纬度中位数作基准</span>
+        double medianLat = 中位纬度, medianLon = 中位经度;
+        double dist = haversineDistance(medianLat, medianLon, msg.getLatitude(), msg.getLongitude());
+        <span class="k">if</span> (dist &gt; MAX_DISTANCE_KM) {   <span class="c">// 偏离中位数超 100km</span>
+            detected = true;
+            createAlert("位置异常跳变", "红色", "...", msg);
+            markAbnormal(aircraft);
+        }
+    }
+    <span class="c">// 5. 高度突变（相邻报文对比）+ 重放检测（60秒内相同 hex）…（略）</span>
+
+    <span class="c">// ★ 事后对照验证：检测【完成后】才读 source，仅用于算检出率/误报率，不参与上面的判断</span>
+    <span class="k">if</span> ("INJECTED".equals(msg.getSource())) {
+        injectedChecked.incrementAndGet();
+        <span class="k">if</span> (detected) truePositives.incrementAndGet();
+    } <span class="k">else</span> {
+        normalChecked.incrementAndGet();
+        <span class="k">if</span> (detected) falsePositives.incrementAndGet();
+    }
+}</div>
+  <p>注意最后一段：<span class="hl"><code>source</code> 字段是在所有检测算法跑完之后才读取的</span>，而且只用来做「检出率 / 误报率」统计——检测「这条报文是否异常」的决策过程，全程没有用到它。</p>
+</section>
+
+<section>
+  <h2><span class="tag">对照</span> 三、两者在代码里到底是怎么「分离」的</h2>
+  <table>
+    <thead>
+      <tr><th style="width:24%;">维度</th><th style="width:38%;">攻击端 AttackInjector</th><th style="width:38%;">检测端 SecurityCheckService</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>职责</td><td>构造恶意报文，写入总线</td><td>读报文流，判断是否异常</td></tr>
+      <tr><td>是否改 Aircraft</td><td><span class="hl">否</span>（只读受害者字段构造 hex）</td><td>命中后才把状态标「异常」</td></tr>
+      <tr><td>接口</td><td><code>inject(type)</code> → 输出一条报文</td><td><code>check(msg)</code> ← 只接收一条报文</td></tr>
+      <tr><td>知不知道受害者</td><td>攻击时知道（自己选的）</td><td><span class="hl">不知道</span>，靠算法从报文推断</td></tr>
+      <tr><td>读不读 source</td><td>写 <code>source=INJECTED</code></td><td>判断时<span class="hl">不读</span>，事后统计才读</td></tr>
+    </tbody>
+  </table>
+  <div class="callout">
+    一句话：攻击端「只知道自己在发射什么」，检测端「只知道自己在接收什么」，两者通过报文总线这个「信道」连接，<span class="hl">发射方不知道检测方如何判断，检测方也不知道哪条是攻击</span>——这就是「发射 → 接收」的分离，而不是「发射即知」。
+  </div>
+</section>
+
+<section>
+  <h2><span class="tag">诚实说明</span> 四、当前实现的边界</h2>
+  <p>要如实说明：当前两者是<span class="hl">同一个 JVM 进程内、通过数据库表（报文总线）传递</span>的软件层分离，不是真实的射频/网络物理分离。也就是说：</p>
+  <ul class="dash">
+    <li>✅ 逻辑上完全分离：不同服务、无共享可变状态、检测不读 <code>source</code>、不接收受害者身份</li>
+    <li>✅ 检测的「判断」和攻击的「发射」彼此独立，检测结果完全由报文内容决定</li>
+    <li>⚠️ 物理上仍是同进程调用 <code>check(msg)</code>，若要模拟真实的「空中传播 + 接收」异步过程，可进一步换成消息队列 / 数据库轮询 / WebSocket 推送</li>
+  </ul>
+  <p>对当前「安全仿真验证平台」的定位而言，这套软件层分离已经达到了「检测器不知道攻击源」的核心目标，也支撑了检出率/误报率的量化验证。</p>
+</section>
+
+<div class="footer">
+  <span>ADS-B 安全可信仿真系统 · 攻击与检测分离代码实现</span>
+  <span>项目组 · 2026.10.25</span>
+</div>
+
+</body>
+</html>
