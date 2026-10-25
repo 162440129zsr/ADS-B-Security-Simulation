@@ -223,7 +223,7 @@ onUnmounted(() => clearInterval(timer))
 </script>
 
 <style scoped>
-.control-page { padding: 16px; max-width: 640px; }
+.control-page { padding: 16px; max-width: 640px; height: 100%; overflow-y: auto; }
 .card { background: #16213e; border-color: #0f3460; margin-bottom: 12px; }
 .status-line { font-size: 18px; margin-bottom: 4px; }
 .info { color: #999; font-size: 13px; }
