@@ -31,13 +31,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { fetchAlerts, clearAlerts } from '@/api'
 import { ElMessageBox } from 'element-plus'
 
 const alerts = ref<any[]>([])
 const clearing = ref(false)
 const counts = ref<{label:string;value:number;color:string}[]>([])
+let timer: number
 
 function levelColor(l: string) { return l==='红色'?'#e94560':l==='橙色'?'#f0a500':'#f0c040' }
 
@@ -61,5 +62,6 @@ async function doClear() {
   clearing.value = false
 }
 
-onMounted(() => { load(); setInterval(load, 3000) })
+onMounted(() => { load(); timer = window.setInterval(load, 2000) })
+onUnmounted(() => clearInterval(timer))
 </script>

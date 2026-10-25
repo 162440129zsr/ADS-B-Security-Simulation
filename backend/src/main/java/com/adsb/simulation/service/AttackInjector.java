@@ -60,6 +60,9 @@ public class AttackInjector {
             return Map.of("success", false, "message", "未知攻击类型: " + type);
         }
 
+        // 攻击是主动事件：先清除该飞机的告警去重，确保每次攻击都产生新告警
+        securityCheckService.clearDedupCache(victim.getIcao());
+
         // 注入报文总线（source=INJECTED），再交给纯报文检测
         messageRepo.save(msg);
         securityCheckService.check(msg);
