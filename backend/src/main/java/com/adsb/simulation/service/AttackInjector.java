@@ -40,8 +40,9 @@ public class AttackInjector {
      * @return 注入结果（success / attackType / victimIcao / victimCallsign）
      */
     public Map<String, Object> inject(String attackType) {
-        List<Aircraft> all = aircraftRepo.findAll();
-        if (all.isEmpty()) return Map.of("success", false, "message", "没有飞机可攻击");
+        // 只攻击仿真飞机（有活跃报文流与检测历史）；真实航班是静态快照，无法触发位置/高度/重放检测
+        List<Aircraft> all = aircraftRepo.findBySource("SIMULATION");
+        if (all.isEmpty()) return Map.of("success", false, "message", "没有仿真飞机可攻击");
 
         Aircraft victim = all.get(RNG.nextInt(all.size()));
         String type = attackType != null ? attackType : ATTACK_TYPES[RNG.nextInt(ATTACK_TYPES.length)];
@@ -67,7 +68,7 @@ public class AttackInjector {
                 "success", true,
                 "attackType", type,
                 "victimIcao", victim.getIcao(),
-                "victimCallsign", victim.getCallsign()
+                "victimCallsign", victim.getCallsign() != null ? victim.getCallsign() : victim.getIcao()
         );
     }
 
