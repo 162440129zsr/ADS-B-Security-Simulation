@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -27,6 +28,7 @@ public class SimulationService {
 
     private final AircraftRepository aircraftRepo;
     private final AdsbMessageRepository messageRepo;
+    private final SecurityAlertRepository alertRepo;
     private final SimulationConfigRepository configRepo;
     private final AdsbMessageFactory messageFactory;
     private final SecurityCheckService securityCheckService;
@@ -100,7 +102,8 @@ public class SimulationService {
         log.info("仿真已停止");
     }
 
-    /** 运行时调整飞机数量 */
+    /** 运行时调整飞机数量（减少时同步清理该飞机的告警/报文/检测缓存，避免孤儿数据） */
+    @Transactional
     public void setAircraftCount(int count) {
         int current = (int) aircraftRepo.countBySource("SIMULATION");
         if (count > current) {
@@ -120,7 +123,11 @@ public class SimulationService {
         } else if (count < current) {
             List<Aircraft> all = aircraftRepo.findBySource("SIMULATION");
             for (int i = current - 1; i >= count; i--) {
-                aircraftRepo.delete(all.get(i));
+                Aircraft ac = all.get(i);
+                alertRepo.deleteByIcao(ac.getIcao());       // 清理该飞机的告警
+                messageRepo.deleteByIcao(ac.getIcao());     // 清理该飞机的报文
+                securityCheckService.removeAircraft(ac.getIcao()); // 清理检测缓存
+                aircraftRepo.delete(ac);
             }
         }
         log.info("飞机数量调整：{} → {}", current, count);

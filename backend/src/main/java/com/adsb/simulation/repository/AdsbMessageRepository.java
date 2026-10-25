@@ -17,5 +17,7 @@ public interface AdsbMessageRepository extends JpaRepository<AdsbMessage, Long> 
 
     long countBySource(String source);
 
+    void deleteByIcao(String icao);
+
     List<AdsbMessage> findTop100ByOrderByReceivedAtDesc();
 }

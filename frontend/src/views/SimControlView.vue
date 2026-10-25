@@ -14,8 +14,11 @@
     </el-button>
 
     <el-card class="card" style="margin-bottom:16px;">
-      <p style="color:#e0e0e0;margin-bottom:8px;">仿真飞机数量：{{ aircraftCount }}（上限 500，接近真实地面站 600 批/秒处理能力）</p>
-      <el-slider v-model="aircraftCount" :min="1" :max="500" :step="5" @change="applyCount"/>
+      <p style="color:#e0e0e0;margin-bottom:8px;">仿真飞机数量（1~500，可拖动或直接输入）：</p>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <el-slider v-model="aircraftCount" :min="1" :max="500" :step="1" @change="applyCount" style="flex:1;"/>
+        <el-input-number v-model="aircraftCount" :min="1" :max="500" :step="1" @change="applyCount" style="width:110px;"/>
+      </div>
       <el-button size="small" @click="applyCount" style="margin-top:8px;">应用</el-button>
     </el-card>
 

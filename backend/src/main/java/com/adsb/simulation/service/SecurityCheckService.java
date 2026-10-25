@@ -220,6 +220,14 @@ public class SecurityCheckService {
         activeAlertTypes.removeIf(k -> k.startsWith(icao + ":"));
     }
 
+    /** 删除飞机时清理其所有检测缓存（位置窗口/高度缓存/重放缓存/去重） */
+    public void removeAircraft(String icao) {
+        positionWindows.remove(icao);
+        lastMessageCache.remove(icao);
+        recentMessageCache.keySet().removeIf(k -> k.startsWith(icao + ":"));
+        activeAlertTypes.removeIf(k -> k.startsWith(icao + ":"));
+    }
+
     /** 清除所有去重缓存并重置检测指标（清空告警时调用） */
     public void clearAllDedupCache() {
         activeAlertTypes.clear();
